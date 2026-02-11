@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Calendar, ArrowRight } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -28,6 +27,17 @@ const Hero: React.FC<HeroProps> = ({ onOpenCalendar }) => {
     }, 6000);
     return () => clearInterval(interval);
   }, []);
+
+  const handleScrollToTours = () => {
+    vibrate(10);
+    const toursSection = document.getElementById('tours');
+    if (toursSection) {
+      // Add a small offset (-80px for navbar clearance) to ensure it lands perfectly
+      const yOffset = -80; 
+      const y = toursSection.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
+  };
 
   return (
     <header id="home" className="relative h-[100dvh] w-full overflow-hidden bg-gray-900 flex flex-col justify-center items-center select-none">
@@ -82,15 +92,14 @@ const Hero: React.FC<HeroProps> = ({ onOpenCalendar }) => {
 
         {/* Action Buttons - 44px min height for accessibility */}
         <div className={`flex flex-col w-full md:w-auto md:flex-row gap-4 opacity-0 translate-y-4 transition-all duration-1000 delay-1000 ${isLoaded ? 'opacity-100 translate-y-0' : ''}`}>
-           <a 
-             href="#tours" 
-             onClick={() => vibrate(10)}
+           <button 
+             onClick={handleScrollToTours}
              className="group relative px-8 h-14 bg-white text-gray-950 font-bold rounded-full transition-all hover-hover:hover:scale-105 active:scale-95 flex items-center justify-center gap-3 overflow-hidden shadow-lg shadow-white/10"
              aria-label={t.hero.choose}
            >
              <span className="relative z-10">{t.hero.choose}</span>
              <ArrowRight className="w-4 h-4 relative z-10 transition-transform hover-hover:group-hover:translate-x-1" />
-           </a>
+           </button>
            
            <button 
              onClick={() => { vibrate(10); onOpenCalendar(); }}

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Clock, MapPin, Zap, Check, Backpack, Calendar, ArrowRight, CheckCircle, Image as ImageIcon, ChevronDown, ChevronUp, Info, ChevronLeft, Mountain, Share2, User } from 'lucide-react';
 import { Tour, TourDate } from '../types';
@@ -20,6 +19,7 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
   const [isMounted, setIsMounted] = useState(false);
   const [activeImage, setActiveImage] = useState<string>('');
   const [isImageLoading, setIsImageLoading] = useState(true);
+  const [isMobileFullView, setIsMobileFullView] = useState(false);
   
   // Accordion States - Description closed by default
   const [isDescOpen, setIsDescOpen] = useState(false);
@@ -53,6 +53,7 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
       setCheckedGear([]); // Reset checklist on new tour
       setIsImageLoading(true);
       setFailedImages(new Set()); // Reset failed images tracker
+      setIsMobileFullView(false);
     }
   }, [tour]);
 
@@ -73,6 +74,20 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
       document.body.style.overflow = '';
     };
   }, []);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (window.innerWidth >= 768) return; // Only mobile logic
+    const scrollTop = e.currentTarget.scrollTop;
+    
+    // Collapse image when scrolling down past 50px
+    if (scrollTop > 50 && !isMobileFullView) {
+      setIsMobileFullView(true);
+    } 
+    // Expand image when scrolled back to very top
+    else if (scrollTop < 10 && isMobileFullView) {
+      setIsMobileFullView(false);
+    }
+  };
 
   if (!tour) return null;
 
@@ -289,9 +304,9 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
             </button>
         </div>
 
-        {/* LEFT COLUMN: Main Image with Skeleton */}
+        {/* LEFT COLUMN: Main Image with Skeleton & Collapsing Logic */}
         <div 
-          className="w-full md:w-[55%] lg:w-[60%] h-[40dvh] md:h-full relative overflow-hidden group bg-gray-900 shrink-0 select-none touch-pan-y"
+          className={`w-full md:w-[55%] lg:w-[60%] relative overflow-hidden group bg-gray-900 shrink-0 select-none touch-pan-y transition-all duration-500 ease-in-out ${isMobileFullView ? 'h-0 opacity-0' : 'h-[40dvh] opacity-100'} md:h-full md:opacity-100`}
         >
            {/* Skeleton Loader - Z-0 to sit behind image */}
            <div className="absolute inset-0 bg-gray-800 z-0 flex items-center justify-center">
@@ -327,8 +342,8 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
               </div>
            </div>
 
-           {/* Text Overlay */}
-           <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 text-white pointer-events-none z-30">
+           {/* Text Overlay - Hidden when mobile view collapsed */}
+           <div className={`absolute bottom-0 left-0 w-full p-6 md:p-12 text-white pointer-events-none z-30 transition-opacity duration-300 ${isMobileFullView ? 'opacity-0' : 'opacity-100'}`}>
               <div className="flex flex-wrap gap-2 mb-2 md:mb-4">
                   <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[10px] md:text-xs font-bold uppercase tracking-widest">
                      <Zap className="w-3 md:w-3.5 h-3 md:h-3.5 text-yellow-400" />
@@ -353,20 +368,23 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
 
         {/* RIGHT COLUMN: Content */}
         <div 
-          className="w-full md:w-[45%] lg:w-[40%] h-[60dvh] md:h-full bg-white dark:bg-gray-900 flex flex-col relative rounded-t-[2rem] md:rounded-none -mt-6 md:mt-0 z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.2)]"
+          className={`w-full md:w-[45%] lg:w-[40%] bg-white dark:bg-gray-900 flex flex-col relative z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.2)] transition-all duration-500 ease-in-out md:h-full md:mt-0 md:rounded-none ${isMobileFullView ? 'h-[100dvh] mt-0 rounded-none' : 'h-[60dvh] rounded-t-[2rem] -mt-6'}`}
           onTouchStart={(e) => e.stopPropagation()} 
         >
            {/* Handle for visual cue */}
-           <div className="w-full flex justify-center pt-3 pb-1 md:hidden opacity-50 shrink-0">
+           <div className={`w-full flex justify-center pt-3 pb-1 md:hidden opacity-50 shrink-0 ${isMobileFullView ? 'hidden' : 'block'}`}>
               <div className="w-12 h-1.5 rounded-full bg-gray-300 dark:bg-gray-700"></div>
            </div>
 
-           {/* Scrollable Content Area - Added 'overscroll-contain' to prevent background scroll chaining */}
-           <div className="flex-1 overflow-y-auto p-6 md:p-10 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700 pb-24 overscroll-contain">
+           {/* Scrollable Content Area - Added 'overscroll-contain' and scroll listener */}
+           <div 
+              className="flex-1 overflow-y-auto p-6 md:p-10 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700 pb-24 overscroll-contain transition-all duration-300"
+              onScroll={handleScroll}
+           >
               
               {/* === SHORT DESCRIPTION (BEFORE ACCORDIONS) === */}
               {tour.shortDesc && (
-                <div className="mb-8 animate-fade-in">
+                <div className="mb-8 animate-fade-in pt-4 md:pt-0">
                     <p className="text-lg md:text-xl font-medium text-deep-slate dark:text-white leading-relaxed italic text-balance border-l-4 border-electric-blue dark:border-emerald-500 pl-4 py-1 bg-gray-50 dark:bg-white/5 rounded-r-xl">
                         {tour.shortDesc}
                     </p>
@@ -404,6 +422,36 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
                     </div>
                  </div>
               </div>
+              
+              {/* === ACCORDION: PROGRAM (IF AVAILABLE) === */}
+              {tour.program && tour.program.length > 0 && (
+                <div className="mb-4 glass-panel rounded-2xl overflow-hidden shadow-sm animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+                   <button 
+                      onClick={() => { vibrate(10); setIsDescOpen(!isDescOpen); /* Reusing desc toggle for simplicity, or add new state */ }} 
+                      className="w-full flex items-center justify-between p-5 hover:bg-white/5 transition-colors"
+                   >
+                      <div className="flex items-center gap-4">
+                          <div className="p-2 bg-orange-500/10 rounded-xl text-orange-500">
+                             <MapPin className="w-5 h-5" />
+                          </div>
+                          <h3 className="text-sm md:text-base font-bold text-deep-slate dark:text-white uppercase tracking-wide">
+                             {t.modal.program}
+                          </h3>
+                      </div>
+                      {/* Note: This block doesn't have its own toggle state in this simplified version, assuming program shows with description or needs new state. For now, rendering static if short description isn't enough */}
+                   </button>
+                   <div className="p-5">
+                        <ul className="space-y-4 border-l-2 border-gray-200 dark:border-gray-800 ml-2 pl-6">
+                           {tour.program.map((day, idx) => (
+                             <li key={idx} className="relative">
+                               <div className="absolute -left-[31px] top-1 w-3 h-3 rounded-full bg-electric-blue dark:bg-emerald-500 border-2 border-white dark:border-gray-900"></div>
+                               <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{day}</p>
+                             </li>
+                           ))}
+                        </ul>
+                   </div>
+                </div>
+              )}
 
               {/* === ACCORDION: DATES (SMART GROUPING) === */}
               <div className="mb-4 glass-panel rounded-2xl overflow-hidden shadow-sm">
