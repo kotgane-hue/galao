@@ -1,10 +1,12 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Clock, MapPin, Zap, Check, Backpack, Calendar, ArrowRight, CheckCircle, Image as ImageIcon, ChevronDown, ChevronUp, Info, ChevronLeft, Mountain, Share2, User } from 'lucide-react';
+import { X, Clock, MapPin, Zap, Check, Backpack, Calendar, ArrowRight, CheckCircle, Image as ImageIcon, ChevronDown, ChevronUp, Info, ChevronLeft, Mountain, Share2, User, Shield } from 'lucide-react';
 import { Tour, TourDate } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSwipe } from '../hooks/useSwipe';
 import SEO from './SEO';
 import { vibrate } from '../utils/vibrate';
+import TourInfoBlock from './TourInfoBlock';
 
 interface TourModalProps {
   tour: Tour | null;
@@ -21,8 +23,9 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
   const [isImageLoading, setIsImageLoading] = useState(true);
   const [isMobileFullView, setIsMobileFullView] = useState(false);
   
-  // Accordion States - Description closed by default
+  // Accordion States
   const [isDescOpen, setIsDescOpen] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false); // New state for details
   const [isDatesOpen, setIsDatesOpen] = useState(false); 
   const [isGearOpen, setIsGearOpen] = useState(false);
   const [isGalleryOpen, setIsGalleryOpen] = useState(true);
@@ -46,7 +49,8 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
     if (tour) {
       setIsMounted(true);
       setActiveImage(tour.image);
-      setIsDescOpen(false); // Closed by default
+      setIsDescOpen(false);
+      setIsDetailsOpen(false);
       setIsDatesOpen(false);
       setIsGearOpen(false);
       setIsGalleryOpen(true);
@@ -64,12 +68,10 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
 
   // Robust Scroll Lock
   useEffect(() => {
-    // Lock both html and body to be safe on all browsers
     document.documentElement.style.overflow = 'hidden';
     document.body.style.overflow = 'hidden';
     
     return () => {
-      // Unlock
       document.documentElement.style.overflow = '';
       document.body.style.overflow = '';
     };
@@ -79,11 +81,9 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
     if (window.innerWidth >= 768) return; // Only mobile logic
     const scrollTop = e.currentTarget.scrollTop;
     
-    // Collapse image when scrolling down past 50px
     if (scrollTop > 50 && !isMobileFullView) {
       setIsMobileFullView(true);
     } 
-    // Expand image when scrolled back to very top
     else if (scrollTop < 10 && isMobileFullView) {
       setIsMobileFullView(false);
     }
@@ -91,10 +91,7 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
 
   if (!tour) return null;
 
-  // 1. All potential images (limited to 35)
   const allPotentialImages = [tour.image, ...(tour.gallery || [])].slice(0, 35);
-  
-  // 2. Filtered list for Lightbox (excludes broken images detected by onError)
   const validGalleryImages = allPotentialImages.filter(img => !failedImages.has(img));
 
   const handleImageError = (img: string) => {
@@ -133,7 +130,6 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
             : `${formatDate(tourDate.startDate)} — ${formatDate(tourDate.endDate)} ${getYear(tourDate.endDate)}`;
             
         const message = `Здравствуйте! Хочу записаться на тур "${tour.title}". Даты: ${dateStr}.`;
-        // Using 'text' parameter to prefill/send message for user context
         const telegramUrl = `https://t.me/Galagon_support_bot?text=${encodeURIComponent(message)}`;
         window.open(telegramUrl, '_blank');
     }
@@ -169,7 +165,6 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
     }
   };
 
-  // Lightbox Navigation Logic (Uses Valid Images Only)
   const handleLightboxNext = () => {
     vibrate(10);
     if (!lightboxImage) return;
@@ -191,7 +186,6 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
     onSwipedRight: handleLightboxPrev
   });
 
-  // Swipe to close logic (Only triggers on image/container, not content)
   const onTouchStart = (e: React.TouchEvent) => {
     touchStartY.current = e.targetTouches[0].clientX;
   };
@@ -201,7 +195,6 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
     const touchEndY = e.changedTouches[0].clientY;
     const distance = touchStartY.current - touchEndY;
     
-    // Swipe down to close (distance < -70px)
     if (distance < -70) {
        vibrate(20);
        handleClose();
@@ -223,8 +216,6 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
 
   const handleShare = async () => {
     vibrate(10);
-    
-    // Explicitly construct URL including hash to specific tour
     const baseUrl = window.location.href.split('#')[0];
     const shareUrl = `${baseUrl}#tour-${tour.id}`;
 
@@ -234,7 +225,6 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
       url: shareUrl 
     };
 
-    // Use navigator.share if available, otherwise fallback to clipboard
     if (navigator.share) {
       try {
         await navigator.share(shareData);
@@ -255,7 +245,6 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
   return (
     <div className="fixed inset-0 z-[120] flex items-end md:items-center justify-center pointer-events-none">
       
-      {/* Dynamic SEO for the active Tour */}
       <SEO 
         title={tour.title}
         description={tour.desc}
@@ -263,14 +252,12 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
         url={`https://galagon.ru/#tour-${tour.id}`}
       />
 
-      {/* Click outside to close (Backdrop) */}
       <div 
         className={`absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity duration-300 pointer-events-auto cursor-pointer ${isMounted ? 'opacity-100' : 'opacity-0'}`} 
         onClick={handleClose}
-        style={{ touchAction: 'none' }} // Prevent scrolling on backdrop
+        style={{ touchAction: 'none' }} 
       />
 
-      {/* Main Container */}
       <div 
         className={`relative w-full h-[100dvh] md:w-[95vw] md:h-[90vh] bg-white dark:bg-gray-900 md:rounded-[2.5rem] overflow-hidden flex flex-col md:flex-row shadow-2xl transition-all duration-500 transform origin-bottom md:origin-center border border-white/10 pointer-events-auto ${isMounted ? 'translate-y-0 scale-100 opacity-100' : 'translate-y-20 scale-95 opacity-0'}`}
         onTouchStart={onTouchStart}
@@ -278,7 +265,6 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
         onClick={(e) => e.stopPropagation()}
       >
         
-        {/* 🔥 1. HOME BUTTON (TOP LEFT) 🔥 */}
         <button 
           onClick={handleGoHome}
           className="fixed md:absolute top-4 left-4 md:top-6 md:left-6 z-[9999] px-4 py-2 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-xl text-white border border-white/20 shadow-2xl active:scale-95 transition-all flex items-center gap-2 group pointer-events-auto"
@@ -288,7 +274,6 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
           <span className="font-bold text-xs uppercase tracking-widest hidden sm:inline">Galagon</span>
         </button>
 
-        {/* 🔥 2. CLOSE & SHARE BUTTONS (TOP RIGHT) 🔥 */}
         <div className="fixed md:absolute top-4 right-4 md:top-6 md:right-6 z-[9999] flex gap-3 pointer-events-auto" style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}>
             <button 
                 onClick={handleShare}
@@ -304,11 +289,10 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
             </button>
         </div>
 
-        {/* LEFT COLUMN: Main Image with Skeleton & Collapsing Logic */}
+        {/* LEFT COLUMN */}
         <div 
           className={`w-full md:w-[55%] lg:w-[60%] relative overflow-hidden group bg-gray-900 shrink-0 select-none touch-pan-y transition-all duration-500 ease-in-out ${isMobileFullView ? 'h-0 opacity-0' : 'h-[40dvh] opacity-100'} md:h-full md:opacity-100`}
         >
-           {/* Skeleton Loader - Z-0 to sit behind image */}
            <div className="absolute inset-0 bg-gray-800 z-0 flex items-center justify-center">
                  <Mountain className="w-12 h-12 text-gray-700 animate-bounce" />
            </div>
@@ -323,7 +307,6 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
            />
            <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-900/10 to-transparent md:bg-gradient-to-r md:from-gray-950/90 md:via-gray-900/20 md:to-transparent z-20" />
            
-           {/* Navigation Arrows (Vertical for Main Image) */}
            <div 
              className="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-black/60 to-transparent hidden md:flex justify-center items-start pt-6 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-40"
              onClick={() => { vibrate(10); onPrev(); }}
@@ -342,7 +325,6 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
               </div>
            </div>
 
-           {/* Text Overlay - Hidden when mobile view collapsed */}
            <div className={`absolute bottom-0 left-0 w-full p-6 md:p-12 text-white pointer-events-none z-30 transition-opacity duration-300 ${isMobileFullView ? 'opacity-0' : 'opacity-100'}`}>
               <div className="flex flex-wrap gap-2 mb-2 md:mb-4">
                   <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[10px] md:text-xs font-bold uppercase tracking-widest">
@@ -371,18 +353,15 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
           className={`w-full md:w-[45%] lg:w-[40%] bg-white dark:bg-gray-900 flex flex-col relative z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.2)] transition-all duration-500 ease-in-out md:h-full md:mt-0 md:rounded-none ${isMobileFullView ? 'h-[100dvh] mt-0 rounded-none' : 'h-[60dvh] rounded-t-[2rem] -mt-6'}`}
           onTouchStart={(e) => e.stopPropagation()} 
         >
-           {/* Handle for visual cue */}
            <div className={`w-full flex justify-center pt-3 pb-1 md:hidden opacity-50 shrink-0 ${isMobileFullView ? 'hidden' : 'block'}`}>
               <div className="w-12 h-1.5 rounded-full bg-gray-300 dark:bg-gray-700"></div>
            </div>
 
-           {/* Scrollable Content Area - Added 'overscroll-contain' and scroll listener */}
            <div 
               className="flex-1 overflow-y-auto p-6 md:p-10 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700 pb-24 overscroll-contain transition-all duration-300"
               onScroll={handleScroll}
            >
               
-              {/* === SHORT DESCRIPTION (BEFORE ACCORDIONS) === */}
               {tour.shortDesc && (
                 <div className="mb-8 animate-fade-in pt-4 md:pt-0">
                     <p className="text-lg md:text-xl font-medium text-deep-slate dark:text-white leading-relaxed italic text-balance border-l-4 border-electric-blue dark:border-emerald-500 pl-4 py-1 bg-gray-50 dark:bg-white/5 rounded-r-xl">
@@ -391,7 +370,6 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
                 </div>
               )}
 
-              {/* === ACCORDION: DESCRIPTION === */}
               <div className="mb-4 mt-2 glass-panel rounded-2xl overflow-hidden shadow-sm animate-fade-in-up">
                  <button 
                     onClick={() => { vibrate(10); setIsDescOpen(!isDescOpen); }}
@@ -413,7 +391,6 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
                        <p className="text-gray-800 dark:text-gray-100 leading-relaxed text-base md:text-lg font-light text-balance whitespace-pre-line">
                          {tour.desc}
                        </p>
-                       
                        <div className="flex md:hidden flex-wrap gap-2 mt-6">
                           <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-900 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-800">
                               <Clock className="w-3.5 h-3.5 text-electric-blue" /> {tour.duration}
@@ -423,11 +400,36 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
                  </div>
               </div>
               
-              {/* === ACCORDION: PROGRAM (IF AVAILABLE) === */}
+              {/* === NEW EXPEDITION ECOSYSTEM BLOCK === */}
+              {tour.details && (
+                <div className="mb-4 glass-panel rounded-2xl overflow-hidden shadow-sm animate-fade-in-up border border-amber-500/20">
+                   <button 
+                      onClick={() => { vibrate(10); setIsDetailsOpen(!isDetailsOpen); }}
+                      className="w-full flex items-center justify-between p-5 hover:bg-white/5 transition-colors bg-amber-500/5"
+                   >
+                      <div className="flex items-center gap-4">
+                          <div className="p-2 bg-amber-500/10 rounded-xl text-amber-500">
+                             <Shield className="w-5 h-5" />
+                          </div>
+                          <h3 className="text-sm md:text-base font-bold text-deep-slate dark:text-white uppercase tracking-wide">
+                             The Expedition Ecosystem
+                          </h3>
+                      </div>
+                      <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${isDetailsOpen ? 'rotate-180' : ''}`} />
+                   </button>
+
+                   <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isDetailsOpen ? 'max-h-[2500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                      <div className="p-2 md:p-5">
+                          <TourInfoBlock details={tour.details} />
+                      </div>
+                   </div>
+                </div>
+              )}
+
               {tour.program && tour.program.length > 0 && (
                 <div className="mb-4 glass-panel rounded-2xl overflow-hidden shadow-sm animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
                    <button 
-                      onClick={() => { vibrate(10); setIsDescOpen(!isDescOpen); /* Reusing desc toggle for simplicity, or add new state */ }} 
+                      onClick={() => { vibrate(10); setIsDescOpen(!isDescOpen); }} 
                       className="w-full flex items-center justify-between p-5 hover:bg-white/5 transition-colors"
                    >
                       <div className="flex items-center gap-4">
@@ -438,7 +440,6 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
                              {t.modal.program}
                           </h3>
                       </div>
-                      {/* Note: This block doesn't have its own toggle state in this simplified version, assuming program shows with description or needs new state. For now, rendering static if short description isn't enough */}
                    </button>
                    <div className="p-5">
                         <ul className="space-y-4 border-l-2 border-gray-200 dark:border-gray-800 ml-2 pl-6">
@@ -453,7 +454,6 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
                 </div>
               )}
 
-              {/* === ACCORDION: DATES (SMART GROUPING) === */}
               <div className="mb-4 glass-panel rounded-2xl overflow-hidden shadow-sm">
                  <button 
                     onClick={() => { vibrate(10); setIsDatesOpen(!isDatesOpen); }}
@@ -476,10 +476,9 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
                  <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isDatesOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'}`}>
                     <div className="p-4 space-y-4 overflow-y-auto max-h-[400px] scrollbar-thin">
                         {tour.dates && tour.dates.length > 0 ? (
-                          // Group dates by month
                           Object.entries(
                             tour.dates.reduce((groups, date) => {
-                              const locale = language === 'zh' ? 'zh-CN' : (language === 'ru' ? 'ru-RU' : 'en-US');
+                              const locale = (language as string) === 'zh' ? 'zh-CN' : (language === 'ru' ? 'ru-RU' : 'en-US');
                               const month = new Date(date.startDate).toLocaleString(locale, { month: 'long' });
                               const key = month.charAt(0).toUpperCase() + month.slice(1);
                               if (!groups[key]) groups[key] = [];
@@ -488,7 +487,6 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
                             }, {} as Record<string, TourDate[]>)
                           ).map(([monthName, monthDates]) => (
                             <div key={monthName}>
-                              {/* Sticky Month Header */}
                               <h4 className="sticky top-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm py-2 px-1 text-xs font-black uppercase tracking-widest text-gray-400 z-10 mb-3 border-b border-gray-100 dark:border-gray-800">
                                 {monthName}
                               </h4>
@@ -559,7 +557,6 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
                            </div>
                         )}
 
-                        {/* Individual Booking Option (Always Visible at Bottom) */}
                         <div 
                             onClick={handleIndividualBooking}
                             className="group relative p-4 rounded-xl border-2 border-dashed border-electric-blue/20 dark:border-emerald-500/20 bg-electric-blue/5 dark:bg-emerald-500/5 hover:bg-electric-blue/10 dark:hover:bg-emerald-500/10 transition-all cursor-pointer flex items-center justify-between mt-2"
@@ -581,7 +578,6 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
                  </div>
               </div>
 
-              {/* === ACCORDION: GEAR (INTERACTIVE CHECKLIST) === */}
               <div className="mb-4 glass-panel rounded-2xl overflow-hidden shadow-sm">
                  <button 
                     onClick={() => { vibrate(10); setIsGearOpen(!isGearOpen); }}
@@ -626,7 +622,6 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
                  </div>
               </div>
 
-              {/* === ACCORDION: GALLERY (GRID LAYOUT) === */}
               <div className="mb-4 glass-panel rounded-2xl overflow-hidden shadow-sm relative group/gallery">
                  <button 
                     onClick={() => { vibrate(10); setIsGalleryOpen(!isGalleryOpen); }}
@@ -643,12 +638,10 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
                     <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${isGalleryOpen ? 'rotate-180' : ''}`} />
                  </button>
 
-                 {/* Vertical Grid Container */}
                  <div className={`transition-all duration-700 ease-in-out ${isGalleryOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
                     <div className="p-4">
                          
                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                            {/* Main Image Thumbnail */}
                             <div 
                                 onClick={() => handleGalleryClick(tour.image)}
                                 className={`aspect-[4/3] rounded-xl overflow-hidden cursor-pointer border-2 transition-all ${activeImage === tour.image ? 'border-electric-blue dark:border-emerald-500 ring-2 ring-electric-blue/30' : 'border-transparent hover:opacity-80'}`}
@@ -665,7 +658,6 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
                                 />
                             </div>
 
-                            {/* Gallery Images (Limit to 35) */}
                             {tour.gallery?.slice(0, 35).map((img, idx) => (
                                <div 
                                  key={idx}
@@ -689,12 +681,10 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
                  </div>
               </div>
 
-              {/* Extra padding to ensure content isn't covered by fixed button */}
               <div className="h-20"></div>
 
            </div>
 
-            {/* Price Block (Fixed at bottom) */}
             <div className="p-4 md:p-6 bg-white/90 dark:bg-gray-950/90 backdrop-blur-xl border-t border-gray-200 dark:border-gray-800 z-30 sticky bottom-0">
                  <div className="bg-gradient-to-r from-deep-slate to-gray-900 dark:from-white dark:to-gray-200 rounded-2xl p-4 md:p-5 text-white dark:text-black shadow-2xl flex justify-between items-center transform transition-transform hover:scale-[1.01]">
                     <div>
@@ -711,14 +701,12 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
 
       </div>
 
-      {/* MOBILE LIGHTBOX with SWIPE */}
       {lightboxImage && (
         <div 
           className="fixed inset-0 z-[130] bg-black flex items-center justify-center animate-fade-in md:hidden touch-pan-y pointer-events-auto"
           onClick={() => { vibrate(10); setLightboxImage(null); }} 
           {...lightboxSwipeHandlers}
         >
-          {/* Lightbox Controls */}
           <button 
             className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full z-20 pointer-events-auto"
             onClick={(e) => { e.stopPropagation(); vibrate(10); setLightboxImage(null); }}
@@ -726,7 +714,6 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
             <X className="w-8 h-8" />
           </button>
 
-          {/* Left Arrow */}
           <button 
             onClick={(e) => { e.stopPropagation(); handleLightboxPrev(); }}
             className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-black/30 text-white rounded-full z-20 pointer-events-auto"
@@ -734,7 +721,6 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
             <ChevronLeft className="w-8 h-8" />
           </button>
 
-          {/* Right Arrow */}
           <button 
             onClick={(e) => { e.stopPropagation(); handleLightboxNext(); }}
             className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-black/30 text-white rounded-full z-20 pointer-events-auto"
@@ -749,7 +735,6 @@ const TourModal: React.FC<TourModalProps> = ({ tour, onClose, onNext, onPrev }) 
             onClick={(e) => e.stopPropagation()} 
           />
           
-          {/* Index Indicator */}
           <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-black/50 px-3 py-1 rounded-full text-white text-xs font-bold">
              {validGalleryImages.indexOf(lightboxImage) + 1} / {validGalleryImages.length}
           </div>

@@ -1,4 +1,3 @@
-
 import React, { useState, Suspense, lazy, useRef, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
@@ -161,7 +160,7 @@ const AppContent = () => {
         {/* Lazy load other sections on scroll */}
         {/* WRAPPED IN DIVS WITH IDs TO ENSURE NAVIGATION WORKS BEFORE LOAD */}
         
-        <div id="about" className="scroll-mt-20">
+        <div id="about" className="scroll-mt-24 md:scroll-mt-32">
             <LazySection>
               <GallerySection />
             </LazySection>
@@ -171,8 +170,8 @@ const AppContent = () => {
           <GodSection />
         </LazySection>
         
-        {/* Anchor for immediate scrolling */}
-        <div id="tours" className="scroll-mt-20">
+        {/* Anchor for immediate scrolling - Increased scroll margin */}
+        <div id="tours" className="scroll-mt-24 md:scroll-mt-32">
           <LazySection>
             <ToursSection 
               onOpenTour={handleOpenTour} 
@@ -185,14 +184,14 @@ const AppContent = () => {
           <VideoSection />
         </LazySection>
         
-        <div id="team" className="scroll-mt-20">
+        <div id="team" className="scroll-mt-24 md:scroll-mt-32">
             <LazySection>
               <TeamSection />
             </LazySection>
         </div>
 
         {/* Reviews moved to bottom */}
-        <div id="reviews" className="scroll-mt-20">
+        <div id="reviews" className="scroll-mt-24 md:scroll-mt-32">
             <LazySection>
               <ReviewsSection onOpenReviewModal={handleOpenReviewModal} />
             </LazySection>

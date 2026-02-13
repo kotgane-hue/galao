@@ -1,4 +1,3 @@
-
 import React, { useRef, useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { ChevronLeft, ChevronRight, Camera, Mountain, Map, Users } from 'lucide-react';
@@ -104,7 +103,7 @@ const GallerySection: React.FC = () => {
   };
 
   return (
-    <section id="about" className="py-16 md:py-24 bg-light-block dark:bg-gray-950 relative overflow-hidden transition-colors duration-500 min-h-[90vh] flex flex-col justify-center">
+    <section className="py-16 md:py-24 bg-light-block dark:bg-gray-950 relative overflow-hidden transition-colors duration-500 min-h-[90vh] flex flex-col justify-center">
        
        {/* MASSIVE BACKGROUND TEXT */}
        <div 

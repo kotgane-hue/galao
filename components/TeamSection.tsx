@@ -95,7 +95,6 @@ const TeamSection: React.FC = () => {
 
   return (
     <section 
-      id="team" 
       // FIX: Mobile uses py-4 and min-h-[100dvh] to fill screen exactly
       className={`py-4 md:py-32 min-h-[100dvh] flex flex-col justify-center overflow-hidden relative transition-all duration-700 ease-in-out select-none ${
         isAvocadoActive 

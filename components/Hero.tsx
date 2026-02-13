@@ -32,10 +32,8 @@ const Hero: React.FC<HeroProps> = ({ onOpenCalendar }) => {
     vibrate(10);
     const toursSection = document.getElementById('tours');
     if (toursSection) {
-      // Add a small offset (-80px for navbar clearance) to ensure it lands perfectly
-      const yOffset = -80; 
-      const y = toursSection.getBoundingClientRect().top + window.pageYOffset + yOffset;
-      window.scrollTo({ top: y, behavior: 'smooth' });
+      // Use native scrollIntoView which respects CSS scroll-margin-top
+      toursSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
 

@@ -16,6 +16,33 @@ export interface TourDate {
 
 export type TourCategory = 'one-day' | 'multi-day' | 'jeep' | 'excursion' | 'gastro' | 'other';
 
+export interface RentalItem {
+  name: string;
+  price: string;
+}
+
+export interface RentalCategory {
+  category: string;
+  items: RentalItem[];
+}
+
+export interface VipService {
+  title: string;
+  price: string;
+  desc: string;
+  icon: 'Backpack' | 'ChefHat';
+}
+
+export interface TourDetails {
+  rental: RentalCategory[];
+  vip: VipService[];
+  rules: string[];
+  booking: {
+    deposit: string;
+    refundPolicy: string;
+  };
+}
+
 export interface Tour {
   id: string;
   title: string;
@@ -35,6 +62,7 @@ export interface Tour {
   reviews: Review[];
   dates?: TourDate[];
   groupSizeInfo?: string; // e.g. "4-10 people"
+  details?: TourDetails; // New optional field for extended tour info
 }
 
 export interface TeamMember {

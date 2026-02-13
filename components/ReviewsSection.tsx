@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Star, MessageSquarePlus } from 'lucide-react';
@@ -11,7 +10,7 @@ const ReviewsSection: React.FC<ReviewsSectionProps> = ({ onOpenReviewModal }) =>
   const { reviews, t } = useLanguage();
 
   return (
-    <section id="reviews" className="py-20 md:py-24 bg-light-bg dark:bg-gray-950 overflow-hidden relative transition-colors duration-500">
+    <section className="py-20 md:py-24 bg-light-bg dark:bg-gray-950 overflow-hidden relative transition-colors duration-500">
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         

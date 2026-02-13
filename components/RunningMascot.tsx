@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useLanguage } from '../contexts/LanguageContext';
 
 const RunningMascot: React.FC = () => {
-  const { language } = useLanguage();
   const [deathType, setDeathType] = useState<number | null>(null);
   const [isGone, setIsGone] = useState(false);
   const [speech, setSpeech] = useState<string | null>(null);
@@ -15,18 +13,10 @@ const RunningMascot: React.FC = () => {
   const rightEyeRef = useRef<SVGCircleElement>(null);
   const lastSpeechTime = useRef<number>(0);
 
-  // --- LOCALIZATION ---
-  const MESSAGES = {
-    ru: ["Хочу хычин", "Хочу пирог", "А когда привал?", "А вершина скоро?", "Меняю палки на еду", "Кто положил кирпич?!", "Лифт есть?", "Я - гуакамоле!", "Осторожно, я мягкий!", "Зелёный, но мощный!", "Ща упаду!"],
-    en: ["Want Khychin!", "Want pie!", "When is break?", "Summit soon?", "Will trade poles for food", "Who added bricks?!", "Elevator?", "I am guacamole!", "Careful, soft!", "Green power!", "I'm falling!"],
-    zh: ["想吃 Khychin!", "想吃馅饼!", "什么时候休息?", "顶峰快到了吗?", "用登山杖换食物!", "谁放了砖头?!", "有电梯吗?", "我要变成鳄梨酱!", "小心，我很软!", "绿色力量!", "我要倒了!"]
-  };
+  // --- LOCALIZATION (RUSSIAN ONLY) ---
+  const MESSAGES = ["Хочу хычин", "Хочу пирог", "А когда привал?", "А вершина скоро?", "Меняю палки на еду", "Кто положил кирпич?!", "Лифт есть?", "Я - гуакамоле!", "Осторожно, я мягкий!", "Зелёный, но мощный!", "Ща упаду!"];
 
-  const FINAL_WORDS = {
-    ru: "О нет! Только не это!",
-    en: "Oh no! Not again!",
-    zh: "哦不！别再来了！"
-  };
+  const FINAL_WORDS = "О нет! Только не это!";
 
   // --- EYE TRACKING ---
   useEffect(() => {
@@ -63,8 +53,7 @@ const RunningMascot: React.FC = () => {
     if (now - lastSpeechTime.current < 15000) return;
     lastSpeechTime.current = now;
 
-    const currentPhrases = MESSAGES[language] || MESSAGES['en'];
-    const phrase = currentPhrases[Math.floor(Math.random() * currentPhrases.length)];
+    const phrase = MESSAGES[Math.floor(Math.random() * MESSAGES.length)];
     setSpeech(phrase);
     setTimeout(() => setSpeech(null), 5000);
   };
@@ -88,7 +77,7 @@ const RunningMascot: React.FC = () => {
          el.removeEventListener('animationiteration', handleAnim);
        };
     }
-  }, [deathType, language]);
+  }, [deathType]);
 
   // --- INTERACTION ---
   const handleClick = (e: React.MouseEvent | React.TouchEvent) => {
@@ -101,7 +90,7 @@ const RunningMascot: React.FC = () => {
 
     const type = Math.floor(Math.random() * 6) + 1;
     setDeathType(type);
-    setSpeech(FINAL_WORDS[language] || FINAL_WORDS['en']);
+    setSpeech(FINAL_WORDS);
     
     // Flash Effect for Lightning
     if (type === 2) { 

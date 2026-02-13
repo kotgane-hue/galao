@@ -1,21 +1,4 @@
-
 import React, { useState } from 'react';
-import {
-  format,
-  startOfMonth,
-  endOfMonth,
-  startOfWeek,
-  endOfWeek,
-  eachDayOfInterval,
-  isSameMonth,
-  isSameDay,
-  addMonths,
-  subMonths,
-  parseISO,
-  isWithinInterval,
-  isToday
-} from 'date-fns';
-import { ru, enUS, zhCN } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, X, Calendar as CalendarIcon, MapPin, Clock, ArrowRight as ArrowRightIcon } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Tour } from '../types';
@@ -25,27 +8,79 @@ interface CalendarModalProps {
   onOpenTour: (tour: Tour) => void;
 }
 
+// Native Date Utils replacement for date-fns
+const getStartOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1);
+const getEndOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 0);
+
+const getStartOfWeek = (date: Date) => {
+  const day = date.getDay(); // 0 (Sun) to 6 (Sat)
+  // We want Monday (1) to be start.
+  // If day is 0 (Sun), diff is 6. 
+  // If day is 1 (Mon), diff is 0.
+  const diff = day === 0 ? 6 : day - 1;
+  const d = new Date(date);
+  d.setDate(d.getDate() - diff);
+  return d;
+};
+
+const getEndOfWeek = (date: Date) => {
+  const d = getStartOfWeek(date);
+  d.setDate(d.getDate() + 6);
+  return d;
+};
+
+const eachDayOfInterval = (start: Date, end: Date) => {
+  const days: Date[] = [];
+  const current = new Date(start);
+  while (current <= end) {
+    days.push(new Date(current));
+    current.setDate(current.getDate() + 1);
+  }
+  return days;
+};
+
+const isSameMonth = (d1: Date, d2: Date) => 
+  d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth();
+
+const isSameDay = (d1: Date, d2: Date) => 
+  d1.getFullYear() === d2.getFullYear() && 
+  d1.getMonth() === d2.getMonth() && 
+  d1.getDate() === d2.getDate();
+
+const isToday = (d: Date) => isSameDay(d, new Date());
+
+const addMonths = (d: Date, n: number) => {
+  const newDate = new Date(d);
+  newDate.setMonth(d.getMonth() + n);
+  return newDate;
+};
+
+const subMonths = (d: Date, n: number) => addMonths(d, -n);
+
+const parseISO = (s: string) => {
+  // Assumes YYYY-MM-DD
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, m - 1, d);
+};
+
+const isWithinInterval = (date: Date, { start, end }: { start: Date, end: Date }) => {
+  const t = date.getTime();
+  const s = start.getTime();
+  const e = end.getTime();
+  return t >= s && t <= e;
+};
+
 const CalendarModal: React.FC<CalendarModalProps> = ({ onClose, onOpenTour }) => {
-  const { tours, t, language } = useLanguage();
+  const { tours, t } = useLanguage();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
-  const getLocale = () => {
-    switch(language) {
-      case 'ru': return ru;
-      case 'zh': return zhCN;
-      default: return enUS;
-    }
-  };
+  const monthStart = getStartOfMonth(currentMonth);
+  const monthEnd = getEndOfMonth(monthStart);
+  const startDate = getStartOfWeek(monthStart);
+  const endDate = getEndOfWeek(monthEnd);
 
-  const locale = getLocale();
-
-  const monthStart = startOfMonth(currentMonth);
-  const monthEnd = endOfMonth(monthStart);
-  const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
-  const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
-
-  const calendarDays = eachDayOfInterval({ start: startDate, end: endDate });
+  const calendarDays = eachDayOfInterval(startDate, endDate);
   const weekDays = t.calendar.weekDays;
 
   const getToursForDate = (date: Date) => {
@@ -104,9 +139,11 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ onClose, onOpenTour }) =>
             
             <div className="text-center">
               <h2 className="text-3xl md:text-4xl font-heading font-black text-gray-900 dark:text-white capitalize tracking-tight drop-shadow-sm">
-                {format(currentMonth, 'LLLL', { locale })}
+                {currentMonth.toLocaleString('ru', { month: 'long' })}
               </h2>
-              <p className="text-lg text-gray-500 dark:text-gray-400 font-light tracking-widest">{format(currentMonth, 'yyyy', { locale })}</p>
+              <p className="text-lg text-gray-500 dark:text-gray-400 font-light tracking-widest">
+                {currentMonth.getFullYear()}
+              </p>
             </div>
 
             <button onClick={nextMonth} className="p-3 hover:bg-white/20 dark:hover:bg-white/10 rounded-full transition-all text-gray-700 dark:text-white border border-transparent hover:border-white/20">
@@ -145,7 +182,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ onClose, onOpenTour }) =>
                   `}
                 >
                   <span className={`text-base md:text-xl font-bold ${isSelected ? 'text-white' : ''}`}>
-                    {format(day, 'd')}
+                    {day.getDate()}
                   </span>
                   
                   {hasTours && (
@@ -171,7 +208,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ onClose, onOpenTour }) =>
              {selectedDayTours.length > 0 ? (
                <div className="space-y-3">
                  <h4 className="font-bold text-gray-900 dark:text-white mb-2 text-center uppercase tracking-wide text-xs">
-                    {format(selectedDate, 'd MMMM', { locale })}
+                    {selectedDate.toLocaleString('ru', { day: 'numeric', month: 'long' })}
                  </h4>
                  {selectedDayTours.map(tour => (
                     <div 
@@ -204,9 +241,11 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ onClose, onOpenTour }) =>
            <div className="w-full text-center py-4 mb-6 shrink-0 border-b border-gray-200/20 dark:border-white/10">
               <span className="text-electric-blue dark:text-emerald-400 font-bold uppercase tracking-[0.2em] text-xs">{t.calendar.selectedDate}</span>
               <h3 className="text-4xl font-heading font-black text-deep-slate dark:text-white mt-2 capitalize drop-shadow-md">
-                {format(selectedDate, 'd MMM', { locale })}
+                {selectedDate.toLocaleString('ru', { day: 'numeric', month: 'short' })}
               </h3>
-              <p className="text-gray-600 dark:text-gray-400 text-sm mt-1 capitalize font-medium">{format(selectedDate, 'EEEE', { locale })}</p>
+              <p className="text-gray-600 dark:text-gray-400 text-sm mt-1 capitalize font-medium">
+                {selectedDate.toLocaleString('ru', { weekday: 'long' })}
+              </p>
            </div>
 
            <div className="flex-1 overflow-y-auto pr-2 space-y-4 scrollbar-thin pb-4">

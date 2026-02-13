@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Clock, Users, ArrowUpRight } from 'lucide-react';
 import { Tour, TourCategory } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -10,7 +9,8 @@ interface ToursSectionProps {
   selectedTourId: string | null;
 }
 
-const TourCard: React.FC<{ tour: Tour; onClick: () => void; isSelected: boolean; priority: boolean }> = ({ tour, onClick, isSelected, priority }) => {
+// Optimized Card Component with React.memo
+const TourCard = React.memo(({ tour, onClick, isSelected, priority }: { tour: Tour; onClick: () => void; isSelected: boolean; priority: boolean }) => {
   // Extract numeric price for Schema
   const numericPrice = tour.price.replace(/\D/g, '');
 
@@ -137,7 +137,7 @@ const TourCard: React.FC<{ tour: Tour; onClick: () => void; isSelected: boolean;
       </div>
     </article>
   );
-};
+});
 
 const ToursSection: React.FC<ToursSectionProps> = ({ onOpenTour, selectedTourId }) => {
   const { tours, t } = useLanguage();
@@ -158,19 +158,25 @@ const ToursSection: React.FC<ToursSectionProps> = ({ onOpenTour, selectedTourId 
     ? tours 
     : tours.filter(tour => tour.category === activeFilter);
   
-  const handleFilterClick = (id: 'all' | TourCategory) => {
+  const handleFilterClick = useCallback((id: 'all' | TourCategory) => {
     vibrate(10);
     setActiveFilter(id);
     setVisibleCount(6);
-  };
+  }, []);
 
-  const handleOpenTourWithVibration = (tour: Tour) => {
+  // Memoize the open tour handler
+  const handleOpenTourWithVibration = useCallback((tour: Tour) => {
     vibrate(15);
     onOpenTour(tour);
-  };
+  }, [onOpenTour]);
+
+  const handleLoadMore = useCallback(() => {
+    vibrate(10);
+    setVisibleCount(filteredTours.length);
+  }, [filteredTours.length]);
 
   return (
-    <section id="tours" className="py-24 md:py-32 bg-white dark:bg-black transition-colors duration-500 relative z-10">
+    <section className="py-24 md:py-32 bg-white dark:bg-black transition-colors duration-500 relative z-10">
       <div className="max-w-7xl mx-auto px-6">
         
         {/* Header - Semantic change: div -> header */}
@@ -239,7 +245,7 @@ const ToursSection: React.FC<ToursSectionProps> = ({ onOpenTour, selectedTourId 
         {filteredTours.length > visibleCount && (
           <div className="mt-20 flex justify-center">
             <button 
-              onClick={() => { vibrate(10); setVisibleCount(filteredTours.length); }}
+              onClick={handleLoadMore}
               className="px-8 h-14 rounded-full border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white font-bold text-sm uppercase tracking-widest hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all select-none min-h-[44px]"
             >
               {t.tours.showAll}

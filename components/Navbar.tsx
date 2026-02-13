@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect, useRef } from 'react';
-import { Mountain, Globe, Moon, Sun, ArrowUpRight } from 'lucide-react';
-import { useLanguage, LANGUAGES } from '../contexts/LanguageContext';
+import { Mountain, Moon, Sun, ArrowUpRight } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { vibrate } from '../utils/vibrate';
 
@@ -9,7 +8,7 @@ const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   
-  const { language, setLanguage, t } = useLanguage();
+  const { t } = useLanguage();
   const { theme, toggleTheme } = useTheme();
   
   // Optimized scroll listener
@@ -35,17 +34,9 @@ const Navbar: React.FC = () => {
 
   const navLinks = ['home', 'tours', 'reviews', 'about'];
 
-  const getCurrentLangLabel = () => LANGUAGES.find(l => l.code === language)?.code.toUpperCase();
-
   const handleThemeToggle = () => {
     vibrate(10);
     toggleTheme();
-  };
-
-  const handleLangToggle = () => {
-    vibrate(10);
-    const nextIdx = (LANGUAGES.findIndex(l => l.code === language) + 1) % LANGUAGES.length;
-    setLanguage(LANGUAGES[nextIdx].code);
   };
 
   const handleMenuToggle = () => {
@@ -92,15 +83,6 @@ const Navbar: React.FC = () => {
                     aria-label="Toggle Theme"
                  >
                     {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-                 </button>
-                 
-                 <button 
-                    onClick={handleLangToggle}
-                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-full text-xs font-bold text-white dark:text-gray-300 hover:bg-white/10 dark:hover:bg-white/10 transition-colors min-h-[44px]"
-                    aria-label="Change Language"
-                 >
-                    <Globe className="w-3.5 h-3.5" />
-                    <span>{getCurrentLangLabel()}</span>
                  </button>
               </div>
 
@@ -159,13 +141,6 @@ const Navbar: React.FC = () => {
                   className="flex-1 h-16 rounded-2xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 flex items-center justify-center gap-3 text-gray-900 dark:text-white active:scale-95 transition-transform font-bold"
               >
                   {theme === 'light' ? 'DARK' : 'LIGHT'}
-              </button>
-
-              <button 
-                  onClick={handleLangToggle} 
-                  className="flex-1 h-16 rounded-2xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 flex items-center justify-center gap-3 text-gray-900 dark:text-white active:scale-95 transition-transform font-bold"
-              >
-                  {getCurrentLangLabel()}
               </button>
           </div>
       </div>
