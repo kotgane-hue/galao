@@ -23,6 +23,7 @@ import FloatingManager from './components/FloatingManager';
 
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { AuthProvider } from './contexts/AuthContext';
 import { Tour } from './types';
 
 // Helper component to trigger load only when visible
@@ -72,10 +73,10 @@ const AppContent = () => {
 
   if (isNotFound) {
     return (
-        <>
-            <SEO title="Страница не найдена" />
-            <NotFound />
-        </>
+      <>
+        <SEO title="Страница не найдена" />
+        <NotFound />
+      </>
     );
   }
 
@@ -137,12 +138,12 @@ const AppContent = () => {
   useEffect(() => {
     const hash = window.location.hash;
     if (hash.startsWith('#tour-')) {
-        const tourId = hash.replace('#tour-', '');
-        const tour = tours.find(t => t.id === tourId);
-        if (tour) {
-            setSelectedTourId(tour.id);
-            // document.body.style.overflow = 'hidden'; // Let TourModal handle
-        }
+      const tourId = hash.replace('#tour-', '');
+      const tour = tours.find(t => t.id === tourId);
+      if (tour) {
+        setSelectedTourId(tour.id);
+        // document.body.style.overflow = 'hidden'; // Let TourModal handle
+      }
     }
   }, [tours]);
 
@@ -156,56 +157,56 @@ const AppContent = () => {
       <main>
         {/* Hero loads immediately */}
         <Hero onOpenCalendar={handleOpenCalendar} />
-        
+
         {/* Lazy load other sections on scroll */}
         {/* WRAPPED IN DIVS WITH IDs TO ENSURE NAVIGATION WORKS BEFORE LOAD */}
-        
+
         <div id="about" className="scroll-mt-24 md:scroll-mt-32">
-            <LazySection>
-              <GallerySection />
-            </LazySection>
+          <Suspense fallback={<div className="h-96 w-full flex items-center justify-center text-gray-400">Loading Gallery...</div>}>
+            <GallerySection />
+          </Suspense>
         </div>
 
         <LazySection>
           <GodSection />
         </LazySection>
-        
+
         {/* Anchor for immediate scrolling - Increased scroll margin */}
         <div id="tours" className="scroll-mt-24 md:scroll-mt-32">
           <LazySection>
-            <ToursSection 
-              onOpenTour={handleOpenTour} 
-              selectedTourId={selectedTourId} 
+            <ToursSection
+              onOpenTour={handleOpenTour}
+              selectedTourId={selectedTourId}
             />
           </LazySection>
         </div>
-        
+
         <LazySection>
           <VideoSection />
         </LazySection>
-        
+
         <div id="team" className="scroll-mt-24 md:scroll-mt-32">
-            <LazySection>
-              <TeamSection />
-            </LazySection>
+          <Suspense fallback={<div className="h-96 w-full flex items-center justify-center text-gray-400">Loading Team...</div>}>
+            <TeamSection />
+          </Suspense>
         </div>
 
         {/* Reviews moved to bottom */}
         <div id="reviews" className="scroll-mt-24 md:scroll-mt-32">
-            <LazySection>
-              <ReviewsSection onOpenReviewModal={handleOpenReviewModal} />
-            </LazySection>
+          <Suspense fallback={<div className="h-96 w-full flex items-center justify-center text-gray-400">Loading Reviews...</div>}>
+            <ReviewsSection onOpenReviewModal={handleOpenReviewModal} />
+          </Suspense>
         </div>
       </main>
       <Footer />
       <RunningMascot />
       <MobileStickyBar onOpenCalendar={handleOpenCalendar} />
-      
+
       {/* Global Modals */}
       {selectedTour && (
-        <TourModal 
-          tour={selectedTour} 
-          onClose={handleCloseTour} 
+        <TourModal
+          tour={selectedTour}
+          onClose={handleCloseTour}
           onNext={handleNextTour}
           onPrev={handlePrevTour}
         />
@@ -225,9 +226,11 @@ const AppContent = () => {
 function App() {
   return (
     <ThemeProvider>
-      <LanguageProvider>
-        <AppContent />
-      </LanguageProvider>
+      <AuthProvider>
+        <LanguageProvider>
+          <AppContent />
+        </LanguageProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

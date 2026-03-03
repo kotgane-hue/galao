@@ -1,9 +1,13 @@
 <!DOCTYPE html>
-<html lang="ru" class="scroll-smooth">
+<html lang="ru" class="scroll-smooth dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#030712">
+    <!-- Prevent Flash of Light Theme (FOLT) -->
+    <script>
+      (function(){var t=localStorage.getItem('theme');if(t==='light'){document.documentElement.classList.remove('dark')}})();
+    </script>
     <link rel="canonical" href="https://galagon.ru/" />
     
     <!-- Favicon -->

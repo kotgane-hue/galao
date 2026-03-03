@@ -1,4 +1,3 @@
-
 {
   "name": "galagon-travel",
   "private": true,
@@ -11,17 +10,18 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.98.0",
+    "date-fns": "^3.3.1",
+    "framer-motion": "^11.0.0",
     "lucide-react": "^0.344.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "date-fns": "^3.3.1",
-    "framer-motion": "^11.0.0",
     "react-helmet-async": "^2.0.4"
   },
   "devDependencies": {
+    "@types/node": "^20.11.24",
     "@types/react": "^18.2.64",
     "@types/react-dom": "^18.2.21",
-    "@types/node": "^20.11.24",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.18",
     "postcss": "^8.4.35",
