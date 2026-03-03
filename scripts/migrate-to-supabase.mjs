@@ -2,11 +2,41 @@
  * Migration script: Creates Supabase tables and seeds data from constants.ts
  * 
  * Run: node scripts/migrate-to-supabase.mjs
+ * 
+ * Requires env vars: VITE_SUPABASE_URL, SUPABASE_SERVICE_KEY
+ * (reads from .env.local automatically)
  */
 import { createClient } from '@supabase/supabase-js';
+import { readFileSync } from 'fs';
 
-const SUPABASE_URL = 'https://kgblltdkutkvyojpqgzx.supabase.co';
-const SUPABASE_SERVICE_KEY = 'sb_secret_AlzfgImKTGrVtld4olWfMw_oDo41U8T';
+// Read .env.local file for credentials
+function loadEnv() {
+    try {
+        const envFile = readFileSync('.env.local', 'utf8');
+        const vars = {};
+        for (const line of envFile.split('\n')) {
+            const trimmed = line.trim();
+            if (trimmed && !trimmed.startsWith('#')) {
+                const [key, ...rest] = trimmed.split('=');
+                vars[key.trim()] = rest.join('=').trim();
+            }
+        }
+        return vars;
+    } catch {
+        return {};
+    }
+}
+
+const env = loadEnv();
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || env.VITE_SUPABASE_URL;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || env.SUPABASE_SERVICE_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+    console.error('❌ Missing credentials!');
+    console.error('   Add SUPABASE_SERVICE_KEY to .env.local or pass as env var.');
+    console.error('   Example: SUPABASE_SERVICE_KEY=sb_secret_xxx node scripts/migrate-to-supabase.mjs');
+    process.exit(1);
+}
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
