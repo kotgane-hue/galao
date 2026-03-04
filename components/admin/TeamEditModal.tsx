@@ -30,13 +30,21 @@ const TeamEditModal: React.FC<TeamEditModalProps> = ({ member, onClose }) => {
         setForm(prev => ({ ...prev, [field]: value }));
     };
 
+    const [uploadError, setUploadError] = useState('');
+
     const handleImageUpload = async (file: File) => {
-        if (!file.type.startsWith('image/')) return;
+        if (!file.type.startsWith('image/')) {
+            setUploadError('Выберите изображение (JPG, PNG, WebP)');
+            return;
+        }
         setUploading(true);
+        setUploadError('');
         try {
             const url = await uploadImage(file, 'team');
             updateField('image', url);
-        } catch (err) {
+        } catch (err: any) {
+            const msg = err?.message || 'Ошибка загрузки';
+            setUploadError(msg);
             console.error('Upload failed:', err);
         } finally {
             setUploading(false);
@@ -124,8 +132,8 @@ const TeamEditModal: React.FC<TeamEditModalProps> = ({ member, onClose }) => {
                         <label className={labelClass}>Фото</label>
                         <div
                             className={`relative border-2 border-dashed rounded-2xl p-4 transition-all cursor-pointer group ${dragOver
-                                    ? 'border-emerald-400 bg-emerald-500/10'
-                                    : 'border-gray-600 hover:border-gray-500 bg-gray-800/50'
+                                ? 'border-emerald-400 bg-emerald-500/10'
+                                : 'border-gray-600 hover:border-gray-500 bg-gray-800/50'
                                 }`}
                             onClick={() => fileInputRef.current?.click()}
                             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -173,6 +181,11 @@ const TeamEditModal: React.FC<TeamEditModalProps> = ({ member, onClose }) => {
                             className={`${inputClass} mt-2 text-xs`}
                             placeholder="или вставьте URL: /images/team/photo.webp"
                         />
+                        {uploadError && (
+                            <p className="mt-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                                ❌ {uploadError}
+                            </p>
+                        )}
                     </div>
 
                     <div>
