@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { X, Save, Loader2 } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { X, Save, Loader2, ImagePlus } from 'lucide-react';
 import { TeamMember } from '../../types';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { uploadImage } from '../../lib/uploadImage';
 
 interface TeamEditModalProps {
     member: TeamMember | null; // null = creating new
@@ -13,6 +14,9 @@ const TeamEditModal: React.FC<TeamEditModalProps> = ({ member, onClose }) => {
     const isNew = !member;
 
     const [saving, setSaving] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [dragOver, setDragOver] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [form, setForm] = useState({
         id: member?.id || '',
         name: member?.name || '',
@@ -24,6 +28,31 @@ const TeamEditModal: React.FC<TeamEditModalProps> = ({ member, onClose }) => {
 
     const updateField = (field: string, value: string) => {
         setForm(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleImageUpload = async (file: File) => {
+        if (!file.type.startsWith('image/')) return;
+        setUploading(true);
+        try {
+            const url = await uploadImage(file, 'team');
+            updateField('image', url);
+        } catch (err) {
+            console.error('Upload failed:', err);
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setDragOver(false);
+        const file = e.dataTransfer.files[0];
+        if (file) handleImageUpload(file);
+    };
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) handleImageUpload(file);
     };
 
     const handleSave = async () => {
@@ -90,9 +119,60 @@ const TeamEditModal: React.FC<TeamEditModalProps> = ({ member, onClose }) => {
                         <textarea value={form.desc} onChange={e => updateField('desc', e.target.value)} className={`${inputClass} h-24 resize-y`} placeholder="Описание участника..." />
                     </div>
 
+                    {/* Photo Upload */}
                     <div>
-                        <label className={labelClass}>URL фото</label>
-                        <input value={form.image} onChange={e => updateField('image', e.target.value)} className={inputClass} placeholder="/images/team/photo.webp" />
+                        <label className={labelClass}>Фото</label>
+                        <div
+                            className={`relative border-2 border-dashed rounded-2xl p-4 transition-all cursor-pointer group ${dragOver
+                                    ? 'border-emerald-400 bg-emerald-500/10'
+                                    : 'border-gray-600 hover:border-gray-500 bg-gray-800/50'
+                                }`}
+                            onClick={() => fileInputRef.current?.click()}
+                            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                            onDragLeave={() => setDragOver(false)}
+                            onDrop={handleDrop}
+                        >
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={handleFileSelect}
+                            />
+                            {form.image ? (
+                                <div className="flex items-center gap-4">
+                                    <img
+                                        src={form.image}
+                                        alt="Preview"
+                                        className="w-20 h-20 rounded-full object-cover border border-gray-700"
+                                        onError={(e) => { (e.target as HTMLImageElement).src = '/images/mainfoto/1.webp'; }}
+                                    />
+                                    <div className="flex-1">
+                                        <p className="text-sm text-gray-300 truncate max-w-[180px]">{form.image.split('/').pop()}</p>
+                                        <p className="text-xs text-gray-500 mt-1">Нажмите или перетащите для замены</p>
+                                    </div>
+                                    {uploading && (
+                                        <Loader2 className="w-6 h-6 text-emerald-400 animate-spin" />
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center py-4">
+                                    {uploading ? (
+                                        <Loader2 className="w-10 h-10 text-emerald-400 animate-spin mb-2" />
+                                    ) : (
+                                        <ImagePlus className="w-10 h-10 text-gray-500 group-hover:text-emerald-400 transition-colors mb-2" />
+                                    )}
+                                    <p className="text-sm text-gray-400">Нажмите или перетащите фото</p>
+                                    <p className="text-[10px] text-gray-600 mt-1">JPG, PNG, WebP</p>
+                                </div>
+                            )}
+                        </div>
+                        <input
+                            value={form.image}
+                            onChange={e => updateField('image', e.target.value)}
+                            className={`${inputClass} mt-2 text-xs`}
+                            placeholder="или вставьте URL: /images/team/photo.webp"
+                        />
                     </div>
 
                     <div>

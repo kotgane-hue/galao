@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { X, Save, Loader2, Plus, Trash2, Calendar } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { X, Save, Loader2, Plus, Trash2, Calendar, ImagePlus, Upload } from 'lucide-react';
 import { Tour, TourDate } from '../../types';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { uploadImage } from '../../lib/uploadImage';
 
 interface TourEditModalProps {
     tour: Tour | null; // null = creating new
@@ -25,6 +26,9 @@ const TourEditModal: React.FC<TourEditModalProps> = ({ tour, onClose }) => {
     const isNew = !tour;
 
     const [saving, setSaving] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [dragOver, setDragOver] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [form, setForm] = useState({
         id: tour?.id || '',
         title: tour?.title || '',
@@ -75,6 +79,31 @@ const TourEditModal: React.FC<TourEditModalProps> = ({ tour, onClose }) => {
 
     const removeDate = (index: number) => {
         updateField('dates', form.dates.filter((_: TourDate, i: number) => i !== index));
+    };
+
+    const handleImageUpload = async (file: File) => {
+        if (!file.type.startsWith('image/')) return;
+        setUploading(true);
+        try {
+            const url = await uploadImage(file, 'tours');
+            updateField('image', url);
+        } catch (err) {
+            console.error('Upload failed:', err);
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setDragOver(false);
+        const file = e.dataTransfer.files[0];
+        if (file) handleImageUpload(file);
+    };
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) handleImageUpload(file);
     };
 
     const handleSave = async () => {
@@ -187,10 +216,63 @@ const TourEditModal: React.FC<TourEditModalProps> = ({ tour, onClose }) => {
                                 {COLORS.map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
                         </div>
-                        <div>
-                            <label className={labelClass}>URL изображения</label>
-                            <input value={form.image} onChange={e => updateField('image', e.target.value)} className={inputClass} placeholder="/images/tour/main.webp" />
+                    </div>
+
+                    {/* Image Upload */}
+                    <div>
+                        <label className={labelClass}>Фото тура</label>
+                        <div
+                            className={`relative border-2 border-dashed rounded-2xl p-4 transition-all cursor-pointer group ${dragOver
+                                    ? 'border-emerald-400 bg-emerald-500/10'
+                                    : 'border-gray-600 hover:border-gray-500 bg-gray-800/50'
+                                }`}
+                            onClick={() => fileInputRef.current?.click()}
+                            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                            onDragLeave={() => setDragOver(false)}
+                            onDrop={handleDrop}
+                        >
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={handleFileSelect}
+                            />
+                            {form.image ? (
+                                <div className="flex items-center gap-4">
+                                    <img
+                                        src={form.image}
+                                        alt="Preview"
+                                        className="w-24 h-24 rounded-xl object-cover border border-gray-700"
+                                        onError={(e) => { (e.target as HTMLImageElement).src = '/images/mainfoto/1.webp'; }}
+                                    />
+                                    <div className="flex-1">
+                                        <p className="text-sm text-gray-300 truncate max-w-[200px]">{form.image.split('/').pop()}</p>
+                                        <p className="text-xs text-gray-500 mt-1">Нажмите или перетащите для замены</p>
+                                    </div>
+                                    {uploading && (
+                                        <Loader2 className="w-6 h-6 text-emerald-400 animate-spin" />
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center py-6">
+                                    {uploading ? (
+                                        <Loader2 className="w-10 h-10 text-emerald-400 animate-spin mb-2" />
+                                    ) : (
+                                        <ImagePlus className="w-10 h-10 text-gray-500 group-hover:text-emerald-400 transition-colors mb-2" />
+                                    )}
+                                    <p className="text-sm text-gray-400">Нажмите или перетащите фото</p>
+                                    <p className="text-[10px] text-gray-600 mt-1">JPG, PNG, WebP</p>
+                                </div>
+                            )}
                         </div>
+                        {/* Fallback: manual URL */}
+                        <input
+                            value={form.image}
+                            onChange={e => updateField('image', e.target.value)}
+                            className={`${inputClass} mt-2 text-xs`}
+                            placeholder="или вставьте URL: /images/tour/main.webp"
+                        />
                     </div>
 
                     {/* Descriptions */}

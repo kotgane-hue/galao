@@ -235,6 +235,8 @@ interface LanguageContextType {
   addGalleryItem: (item: GalleryItem) => void;
   deleteGalleryItem: (id: string) => void;
   refreshData: () => Promise<void>;
+  addDateToTour: (tourId: string, date: { startDate: string; endDate: string; totalSpots: number }) => Promise<void>;
+  removeDateFromTour: (tourId: string, startDate: string) => Promise<void>;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -464,6 +466,40 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
   const addGalleryItem = (item: GalleryItem) => setGallery(prev => [...prev, item]);
   const deleteGalleryItem = (id: string) => setGallery(prev => prev.filter(i => i.id !== id));
 
+  // ======== CALENDAR DATE MANAGEMENT ========
+  const addDateToTour = async (tourId: string, date: { startDate: string; endDate: string; totalSpots: number }) => {
+    const tour = tours.find(t => t.id === tourId);
+    if (!tour) return;
+
+    const newDate = { ...date, bookedSpots: 0 };
+    const updatedDates = [...(tour.dates || []), newDate];
+    const updatedTour = { ...tour, dates: updatedDates };
+
+    setTours(prev => prev.map(t => t.id === tourId ? updatedTour : t));
+
+    const { error } = await supabase
+      .from('tours')
+      .update({ dates: updatedDates, updated_at: new Date().toISOString() })
+      .eq('id', tourId);
+    if (error) console.error('addDateToTour error:', error.message);
+  };
+
+  const removeDateFromTour = async (tourId: string, startDate: string) => {
+    const tour = tours.find(t => t.id === tourId);
+    if (!tour || !tour.dates) return;
+
+    const updatedDates = tour.dates.filter(d => d.startDate !== startDate);
+    const updatedTour = { ...tour, dates: updatedDates };
+
+    setTours(prev => prev.map(t => t.id === tourId ? updatedTour : t));
+
+    const { error } = await supabase
+      .from('tours')
+      .update({ dates: updatedDates, updated_at: new Date().toISOString() })
+      .eq('id', tourId);
+    if (error) console.error('removeDateFromTour error:', error.message);
+  };
+
   return (
     <LanguageContext.Provider value={{
       language,
@@ -485,7 +521,9 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
       deleteTeamMember,
       addGalleryItem,
       deleteGalleryItem,
-      refreshData
+      refreshData,
+      addDateToTour,
+      removeDateFromTour,
     }}>
       {children}
     </LanguageContext.Provider>
