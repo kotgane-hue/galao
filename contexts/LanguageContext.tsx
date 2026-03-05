@@ -323,8 +323,14 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
         .select('*')
         .order('sort_order', { ascending: true });
 
-      if (!toursErr && toursData && toursData.length > 0) {
-        setTours(toursData.map(mapDbTour));
+      if (!toursErr && toursData) {
+        const dbTours = toursData.map(mapDbTour);
+        const localTours = getTours();
+        // Merge dbTours with local getTours(), overriding local ones with DB ones by ID
+        const mergedTours = localTours.map(local => dbTours.find(db => db.id === local.id) || local);
+        // Add any new tours from DB that aren't in local
+        const newDbTours = dbTours.filter(db => !localTours.some(local => local.id === db.id));
+        setTours([...mergedTours, ...newDbTours]);
       }
 
       const { data: teamData, error: teamErr } = await supabase
@@ -332,8 +338,12 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
         .select('*')
         .order('sort_order', { ascending: true });
 
-      if (!teamErr && teamData && teamData.length > 0) {
-        setTeam(teamData.map(mapDbTeam));
+      if (!teamErr && teamData) {
+        const dbTeam = teamData.map(mapDbTeam);
+        const localTeam = getTeam();
+        const mergedTeam = localTeam.map(local => dbTeam.find(db => db.id === local.id) || local);
+        const newDbTeam = dbTeam.filter(db => !localTeam.some(local => local.id === db.id));
+        setTeam([...mergedTeam, ...newDbTeam]);
       }
 
       const { data: reviewsData, error: reviewsErr } = await supabase
@@ -371,7 +381,7 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   const updateTour = async (tour: Tour) => {
     setTours(prev => prev.map(t => t.id === tour.id ? tour : t));
-    const { error } = await supabase.from('tours').update(tourToDb(tour)).eq('id', tour.id);
+    const { error } = await supabase.from('tours').upsert(tourToDb(tour));
     if (error) console.error('updateTour error:', error.message);
   };
 
@@ -446,13 +456,15 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   const updateTeamMember = async (member: TeamMember) => {
     setTeam(prev => prev.map(m => m.id === member.id ? member : m));
-    const { error } = await supabase.from('team_members').update({
+    const { error } = await supabase.from('team_members').upsert({
+      id: member.id,
       name: member.name,
       role: member.role,
       description: member.desc,
       image: member.image,
       instagram: member.instagram || '',
-    }).eq('id', member.id);
+      sort_order: team.length,
+    });
     if (error) console.error('updateTeamMember error:', error.message);
   };
 
@@ -479,8 +491,7 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     const { error } = await supabase
       .from('tours')
-      .update({ dates: updatedDates, updated_at: new Date().toISOString() })
-      .eq('id', tourId);
+      .upsert(tourToDb(updatedTour));
     if (error) console.error('addDateToTour error:', error.message);
   };
 
@@ -495,8 +506,7 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     const { error } = await supabase
       .from('tours')
-      .update({ dates: updatedDates, updated_at: new Date().toISOString() })
-      .eq('id', tourId);
+      .upsert(tourToDb(updatedTour));
     if (error) console.error('removeDateFromTour error:', error.message);
   };
 

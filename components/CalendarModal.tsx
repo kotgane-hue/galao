@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, X, Calendar as CalendarIcon, MapPin, Clock, ArrowRight as ArrowRightIcon, Plus, Trash2, Check } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { ChevronLeft, ChevronRight, X, Calendar as CalendarIcon, MapPin, Clock, ArrowRight as ArrowRightIcon, Plus, Trash2, Check, List, CalendarDays, Send } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Tour } from '../types';
@@ -74,11 +74,14 @@ const formatDateISO = (d: Date) => {
   return `${y}-${m}-${day}`;
 };
 
+type SidebarTab = 'day' | 'routes';
+
 const CalendarModal: React.FC<CalendarModalProps> = ({ onClose, onOpenTour }) => {
   const { tours, t, addDateToTour, removeDateFromTour } = useLanguage();
   const { isAdmin } = useAuth();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [activeTab, setActiveTab] = useState<SidebarTab>('routes');
 
   // Admin state
   const [showAddTour, setShowAddTour] = useState(false);
@@ -117,6 +120,22 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ onClose, onOpenTour }) =>
   const selectedDayTours = getToursForDate(selectedDate);
   const availableTours = getAvailableToursForDate(selectedDate);
 
+  // All routes with their nearest dates for the "routes" tab
+  const allRoutesWithDates = useMemo(() => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    return tours
+      .filter(tour => !tour.id.startsWith('dev-'))
+      .map(tour => {
+        const upcomingDates = (tour.dates || [])
+          .filter(d => parseISO(d.endDate) >= now)
+          .sort((a, b) => parseISO(a.startDate).getTime() - parseISO(b.startDate).getTime());
+
+        return { tour, upcomingDates };
+      });
+  }, [tours]);
+
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
   const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
 
@@ -149,9 +168,134 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ onClose, onOpenTour }) =>
     await removeDateFromTour(tourId, dateStr);
   };
 
+  const formatDateRange = (startDate: string, endDate: string) => {
+    const start = parseISO(startDate);
+    const end = parseISO(endDate);
+    const startStr = start.toLocaleString('ru', { day: 'numeric', month: 'short' });
+    if (startDate === endDate) return startStr;
+    const endStr = end.toLocaleString('ru', { day: 'numeric', month: 'short' });
+    return `${startStr} — ${endStr}`;
+  };
+
+  // ─── Tab Buttons Component ───
+  const TabButtons = ({ isMobile = false }: { isMobile?: boolean }) => (
+    <div className={`flex gap-1 ${isMobile ? 'bg-black/20' : 'bg-white/10 dark:bg-black/20'} p-1 rounded-xl backdrop-blur-sm`}>
+      <button
+        onClick={() => setActiveTab('day')}
+        className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wide transition-all duration-300
+          ${activeTab === 'day'
+            ? 'bg-electric-blue/90 dark:bg-emerald-600/90 text-white shadow-lg'
+            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-white/10'
+          }`}
+      >
+        <CalendarDays className="w-3.5 h-3.5" />
+        <span>{selectedDate.toLocaleString('ru', { day: 'numeric', month: 'short' })}</span>
+      </button>
+      <button
+        onClick={() => setActiveTab('routes')}
+        className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wide transition-all duration-300
+          ${activeTab === 'routes'
+            ? 'bg-electric-blue/90 dark:bg-emerald-600/90 text-white shadow-lg'
+            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-white/10'
+          }`}
+      >
+        <List className="w-3.5 h-3.5" />
+        <span>Маршруты</span>
+      </button>
+    </div>
+  );
+
+  // ─── All Routes List Component ───
+  const AllRoutesList = ({ isMobile = false }: { isMobile?: boolean }) => (
+    <div className="space-y-3">
+      {allRoutesWithDates.map(({ tour, upcomingDates }) => (
+        <div
+          key={tour.id}
+          className={`${isMobile
+            ? 'bg-white/40 dark:bg-gray-800/40 p-4 rounded-xl border border-white/10'
+            : 'bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-2xl p-4 border border-white/40 dark:border-white/5 hover:bg-white/80 dark:hover:bg-gray-700/80 transition-all group shadow-lg hover:scale-[1.02] hover:shadow-xl'
+            }`}
+        >
+          {/* Tour Header */}
+          <div
+            className="cursor-pointer"
+            onClick={() => handleTourClick(tour)}
+          >
+            <div className="flex items-start justify-between mb-2">
+              <h4 className={`font-bold ${isMobile ? 'text-sm' : 'text-base'} text-gray-900 dark:text-white leading-tight group-hover:text-electric-blue dark:group-hover:text-emerald-400 transition-colors`}>
+                {tour.title}
+              </h4>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wide backdrop-blur-md shrink-0 ml-2 ${tour.color === 'red' ? 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20' : 'bg-electric-blue/10 dark:bg-emerald-500/10 text-electric-blue dark:text-emerald-400 border border-electric-blue/20 dark:border-emerald-500/20'
+                }`}>
+                {tour.category === 'one-day' ? t.calendar.oneDay : t.calendar.multiDay}
+              </span>
+            </div>
+
+            <div className={`flex items-center gap-3 ${isMobile ? 'text-xs' : 'text-xs'} text-gray-600 dark:text-gray-300 mb-3 font-medium`}>
+              <span className="flex items-center gap-1">
+                <Clock className="w-3 h-3 text-electric-blue dark:text-emerald-500" /> {tour.duration}
+              </span>
+              <span className="flex items-center gap-1">
+                <MapPin className="w-3 h-3 text-electric-blue dark:text-emerald-500" /> {tour.location}
+              </span>
+              <span className="font-black text-gray-900 dark:text-white ml-auto">{tour.price}</span>
+            </div>
+          </div>
+
+          {/* Upcoming Dates */}
+          {upcomingDates.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {upcomingDates.slice(0, 4).map((d, i) => (
+                <span
+                  key={i}
+                  className="inline-flex items-center gap-1 px-2 py-1 bg-electric-blue/10 dark:bg-emerald-500/10 rounded-lg text-[10px] font-bold text-electric-blue dark:text-emerald-400 border border-electric-blue/20 dark:border-emerald-500/20"
+                >
+                  <CalendarDays className="w-2.5 h-2.5" />
+                  {formatDateRange(d.startDate, d.endDate)}
+                </span>
+              ))}
+              {upcomingDates.length > 4 && (
+                <span className="inline-flex items-center px-2 py-1 bg-gray-200/50 dark:bg-white/5 rounded-lg text-[10px] font-bold text-gray-500">
+                  +{upcomingDates.length - 4}
+                </span>
+              )}
+            </div>
+          ) : (
+            <p className="text-[10px] text-gray-400 italic mb-3">Даты уточняются</p>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => handleTourClick(tour)}
+              className="flex-1 py-2 bg-electric-blue/10 dark:bg-emerald-500/10 hover:bg-electric-blue/20 dark:hover:bg-emerald-500/20 rounded-lg text-electric-blue dark:text-emerald-400 text-[11px] font-bold uppercase tracking-wide flex items-center justify-center gap-1.5 transition-all border border-electric-blue/20 dark:border-emerald-500/20 active:scale-95"
+            >
+              Подробнее <ArrowRightIcon className="w-3 h-3" />
+            </button>
+            <a
+              href="https://t.me/Galagon_support_bot"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="py-2 px-3 bg-[#2AABEE]/10 hover:bg-[#2AABEE]/20 rounded-lg text-[#2AABEE] text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all border border-[#2AABEE]/20 active:scale-95"
+            >
+              <Send className="w-3 h-3" /> Записаться
+            </a>
+          </div>
+        </div>
+      ))}
+
+      {allRoutesWithDates.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-8 opacity-60">
+          <CalendarIcon className="w-10 h-10 text-gray-400 mb-3 opacity-50" />
+          <p className="text-center text-sm text-gray-500 font-medium">Маршруты не найдены</p>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
     >
       {/* Background Overlay */}
       <div
@@ -210,7 +354,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ onClose, onOpenTour }) =>
               return (
                 <button
                   key={day.toString()}
-                  onClick={() => { setSelectedDate(day); setShowAddTour(false); }}
+                  onClick={() => { setSelectedDate(day); setShowAddTour(false); setActiveTab('day'); }}
                   className={`
                     relative aspect-square rounded-2xl md:rounded-3xl flex flex-col items-center justify-center transition-all duration-300 group
                     ${!isCurrentMonth ? 'opacity-20 text-gray-400 dark:text-gray-600' : 'text-gray-700 dark:text-gray-200'}
@@ -243,203 +387,229 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ onClose, onOpenTour }) =>
             })}
           </div>
 
-          {/* Mobile Only: Simple List of Tours below calendar */}
+          {/* Mobile Only: Tabs + Content below calendar */}
           <div className="md:hidden mt-6 pb-32">
-            {selectedDayTours.length > 0 ? (
-              <div className="space-y-3">
-                <h4 className="font-bold text-gray-900 dark:text-white mb-2 text-center uppercase tracking-wide text-xs">
-                  {selectedDate.toLocaleString('ru', { day: 'numeric', month: 'long' })}
-                </h4>
-                {selectedDayTours.map(tour => (
-                  <div
-                    key={tour.id}
-                    className="bg-white/40 dark:bg-gray-800/40 p-4 rounded-xl border border-white/10 flex justify-between items-center"
-                  >
-                    <div onClick={() => handleTourClick(tour)} className="flex-1 cursor-pointer">
-                      <div className="font-bold text-sm text-gray-900 dark:text-white">{tour.title}</div>
-                      <div className="text-xs text-gray-500">{tour.duration} • {tour.price}</div>
-                    </div>
-                    {isAdmin && (
-                      <button
-                        onClick={() => handleRemoveTourFromDate(tour.id)}
-                        className="ml-2 p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
-                        title="Убрать с этой даты"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                    <ArrowRightIcon className="w-4 h-4 text-electric-blue dark:text-emerald-400 ml-2" />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-8 px-4 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-sm">
-                <CalendarIcon className="w-10 h-10 text-gray-400 mb-3 opacity-50" />
-                <p className="text-center text-sm text-gray-500 mb-4 font-medium">{t.calendar.noTours}</p>
-                <a href="https://t.me/Galagon_support_bot" target="_blank" rel="noopener noreferrer" className="w-full max-w-xs py-4 bg-electric-blue/10 dark:bg-emerald-500/10 hover:bg-electric-blue/20 dark:hover:bg-emerald-500/20 backdrop-blur-md rounded-xl text-electric-blue dark:text-emerald-400 text-sm font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all border border-electric-blue/20 dark:border-emerald-500/20 shadow-lg active:scale-95">
-                  {t.calendar.orderIndiv} <ArrowRightIcon className="w-4 h-4" />
-                </a>
-              </div>
-            )}
+            {/* Tab Buttons */}
+            <div className="mb-4">
+              <TabButtons isMobile />
+            </div>
 
-            {/* Mobile Admin: Add tour to date */}
-            {isAdmin && (
-              <div className="mt-4">
-                {!showAddTour ? (
-                  <button
-                    onClick={() => setShowAddTour(true)}
-                    className="w-full py-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform"
-                  >
-                    <Plus className="w-4 h-4" /> Добавить маршрут на эту дату
-                  </button>
+            {activeTab === 'day' ? (
+              <>
+                {selectedDayTours.length > 0 ? (
+                  <div className="space-y-3">
+                    <h4 className="font-bold text-gray-900 dark:text-white mb-2 text-center uppercase tracking-wide text-xs">
+                      {selectedDate.toLocaleString('ru', { day: 'numeric', month: 'long' })}
+                    </h4>
+                    {selectedDayTours.map(tour => (
+                      <div
+                        key={tour.id}
+                        className="bg-white/40 dark:bg-gray-800/40 p-4 rounded-xl border border-white/10 flex justify-between items-center"
+                      >
+                        <div onClick={() => handleTourClick(tour)} className="flex-1 cursor-pointer">
+                          <div className="font-bold text-sm text-gray-900 dark:text-white">{tour.title}</div>
+                          <div className="text-xs text-gray-500">{tour.duration} • {tour.price}</div>
+                        </div>
+                        {isAdmin && (
+                          <button
+                            onClick={() => handleRemoveTourFromDate(tour.id)}
+                            className="ml-2 p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
+                            title="Убрать с этой даты"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                        <ArrowRightIcon className="w-4 h-4 text-electric-blue dark:text-emerald-400 ml-2" />
+                      </div>
+                    ))}
+                  </div>
                 ) : (
-                  <div className="bg-gray-800/60 backdrop-blur-sm rounded-xl p-4 border border-gray-700 space-y-3">
-                    <p className="text-xs text-gray-400 font-bold uppercase">Выберите маршрут:</p>
-                    <div className="max-h-48 overflow-y-auto space-y-2">
-                      {availableTours.map(tour => (
-                        <button
-                          key={tour.id}
-                          onClick={() => handleAddTourToDate(tour.id)}
-                          className="w-full text-left px-3 py-2.5 bg-gray-700/50 hover:bg-emerald-500/20 rounded-lg text-sm text-gray-200 hover:text-emerald-300 transition-colors flex items-center gap-2"
-                        >
-                          <Check className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100" />
-                          <span className="font-medium">{tour.title}</span>
-                          <span className="ml-auto text-xs text-gray-500">{tour.duration}</span>
-                        </button>
-                      ))}
-                      {availableTours.length === 0 && (
-                        <p className="text-xs text-gray-500 italic py-2">Все маршруты уже добавлены</p>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => setShowAddTour(false)}
-                      className="w-full py-2 text-xs text-gray-500 hover:text-gray-300 transition-colors"
-                    >
-                      Отмена
-                    </button>
+                  <div className="flex flex-col items-center justify-center py-8 px-4 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-sm">
+                    <CalendarIcon className="w-10 h-10 text-gray-400 mb-3 opacity-50" />
+                    <p className="text-center text-sm text-gray-500 mb-4 font-medium">{t.calendar.noTours}</p>
+                    <a href="https://t.me/Galagon_support_bot" target="_blank" rel="noopener noreferrer" className="w-full max-w-xs py-4 bg-electric-blue/10 dark:bg-emerald-500/10 hover:bg-electric-blue/20 dark:hover:bg-emerald-500/20 backdrop-blur-md rounded-xl text-electric-blue dark:text-emerald-400 text-sm font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all border border-electric-blue/20 dark:border-emerald-500/20 shadow-lg active:scale-95">
+                      {t.calendar.orderIndiv} <ArrowRightIcon className="w-4 h-4" />
+                    </a>
                   </div>
                 )}
-              </div>
+
+                {/* Mobile Admin: Add tour to date */}
+                {isAdmin && (
+                  <div className="mt-4">
+                    {!showAddTour ? (
+                      <button
+                        onClick={() => setShowAddTour(true)}
+                        className="w-full py-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform"
+                      >
+                        <Plus className="w-4 h-4" /> Добавить маршрут на эту дату
+                      </button>
+                    ) : (
+                      <div className="bg-gray-800/60 backdrop-blur-sm rounded-xl p-4 border border-gray-700 space-y-3">
+                        <p className="text-xs text-gray-400 font-bold uppercase">Выберите маршрут:</p>
+                        <div className="max-h-48 overflow-y-auto space-y-2">
+                          {availableTours.map(tour => (
+                            <button
+                              key={tour.id}
+                              onClick={() => handleAddTourToDate(tour.id)}
+                              className="w-full text-left px-3 py-2.5 bg-gray-700/50 hover:bg-emerald-500/20 rounded-lg text-sm text-gray-200 hover:text-emerald-300 transition-colors flex items-center gap-2"
+                            >
+                              <Check className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100" />
+                              <span className="font-medium">{tour.title}</span>
+                              <span className="ml-auto text-xs text-gray-500">{tour.duration}</span>
+                            </button>
+                          ))}
+                          {availableTours.length === 0 && (
+                            <p className="text-xs text-gray-500 italic py-2">Все маршруты уже добавлены</p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => setShowAddTour(false)}
+                          className="w-full py-2 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+                        >
+                          Отмена
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              /* Routes tab - mobile */
+              <AllRoutesList isMobile />
             )}
           </div>
         </div>
 
         {/* Right Side: Details Sidebar (Darker Glass) - Hidden on Mobile */}
         <div className="hidden md:flex w-full md:w-1/3 bg-white/40 dark:bg-black/20 border-l border-white/20 dark:border-white/5 p-6 md:p-8 flex-col overflow-hidden backdrop-blur-md">
-          <div className="w-full text-center py-4 mb-6 shrink-0 border-b border-gray-200/20 dark:border-white/10">
-            <span className="text-electric-blue dark:text-emerald-400 font-bold uppercase tracking-[0.2em] text-xs">{t.calendar.selectedDate}</span>
-            <h3 className="text-4xl font-heading font-black text-deep-slate dark:text-white mt-2 capitalize drop-shadow-md">
-              {selectedDate.toLocaleString('ru', { day: 'numeric', month: 'short' })}
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400 text-sm mt-1 capitalize font-medium">
-              {selectedDate.toLocaleString('ru', { weekday: 'long' })}
-            </p>
+          {/* Tab Buttons */}
+          <div className="mb-4 shrink-0">
+            <TabButtons />
           </div>
 
-          <div className="flex-1 overflow-y-auto pr-2 space-y-4 scrollbar-thin pb-4">
-            {selectedDayTours.length > 0 ? (
-              selectedDayTours.map(tour => (
-                <div
-                  key={tour.id}
-                  className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-2xl p-5 border border-white/40 dark:border-white/5 hover:bg-white/80 dark:hover:bg-gray-700/80 transition-all group shadow-lg cursor-pointer hover:scale-[1.02] hover:shadow-xl"
-                >
-                  <div className="flex justify-between items-start mb-3" onClick={() => handleTourClick(tour)}>
-                    <h4 className="font-bold text-lg text-gray-900 dark:text-white leading-tight group-hover:text-electric-blue dark:group-hover:text-emerald-400 transition-colors">
-                      {tour.title}
-                    </h4>
-                    <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide backdrop-blur-md ${tour.color === 'red' ? 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20' : 'bg-electric-blue/10 dark:bg-emerald-500/10 text-electric-blue dark:text-emerald-400 border border-electric-blue/20 dark:border-emerald-500/20'
-                      }`}>
-                      {tour.category === 'one-day' ? t.calendar.oneDay : t.calendar.multiDay}
-                    </span>
-                  </div>
+          {activeTab === 'day' ? (
+            <>
+              <div className="w-full text-center py-4 mb-6 shrink-0 border-b border-gray-200/20 dark:border-white/10">
+                <span className="text-electric-blue dark:text-emerald-400 font-bold uppercase tracking-[0.2em] text-xs">{t.calendar.selectedDate}</span>
+                <h3 className="text-4xl font-heading font-black text-deep-slate dark:text-white mt-2 capitalize drop-shadow-md">
+                  {selectedDate.toLocaleString('ru', { day: 'numeric', month: 'short' })}
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 text-sm mt-1 capitalize font-medium">
+                  {selectedDate.toLocaleString('ru', { weekday: 'long' })}
+                </p>
+              </div>
 
-                  <div className="flex items-center gap-4 text-xs text-gray-600 dark:text-gray-300 mb-4 font-medium" onClick={() => handleTourClick(tour)}>
-                    <span className="flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-electric-blue dark:text-emerald-500" /> {tour.duration}
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5 text-electric-blue dark:text-emerald-500" /> {tour.location}
-                    </span>
-                  </div>
+              <div className="flex-1 overflow-y-auto pr-2 space-y-4 scrollbar-thin pb-4">
+                {selectedDayTours.length > 0 ? (
+                  selectedDayTours.map(tour => (
+                    <div
+                      key={tour.id}
+                      className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-2xl p-5 border border-white/40 dark:border-white/5 hover:bg-white/80 dark:hover:bg-gray-700/80 transition-all group shadow-lg cursor-pointer hover:scale-[1.02] hover:shadow-xl"
+                    >
+                      <div className="flex justify-between items-start mb-3" onClick={() => handleTourClick(tour)}>
+                        <h4 className="font-bold text-lg text-gray-900 dark:text-white leading-tight group-hover:text-electric-blue dark:group-hover:text-emerald-400 transition-colors">
+                          {tour.title}
+                        </h4>
+                        <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide backdrop-blur-md ${tour.color === 'red' ? 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20' : 'bg-electric-blue/10 dark:bg-emerald-500/10 text-electric-blue dark:text-emerald-400 border border-electric-blue/20 dark:border-emerald-500/20'
+                          }`}>
+                          {tour.category === 'one-day' ? t.calendar.oneDay : t.calendar.multiDay}
+                        </span>
+                      </div>
 
-                  <div className="flex items-center justify-between mt-auto pt-3 border-t border-gray-200/50 dark:border-white/10">
-                    <span className="font-black text-lg text-gray-900 dark:text-white">{tour.price}</span>
-                    <div className="flex items-center gap-2">
-                      {isAdmin && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleRemoveTourFromDate(tour.id); }}
-                          className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
-                          title="Убрать с этой даты"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                      <div className="text-[10px] text-gray-500 dark:text-gray-400 flex items-center gap-1 font-bold uppercase">
-                        {t.calendar.spots}: <span className="text-electric-blue dark:text-emerald-400">{t.calendar.available}</span>
+                      <div className="flex items-center gap-4 text-xs text-gray-600 dark:text-gray-300 mb-4 font-medium" onClick={() => handleTourClick(tour)}>
+                        <span className="flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-electric-blue dark:text-emerald-500" /> {tour.duration}
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <MapPin className="w-3.5 h-3.5 text-electric-blue dark:text-emerald-500" /> {tour.location}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between mt-auto pt-3 border-t border-gray-200/50 dark:border-white/10">
+                        <span className="font-black text-lg text-gray-900 dark:text-white">{tour.price}</span>
+                        <div className="flex items-center gap-2">
+                          {isAdmin && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleRemoveTourFromDate(tour.id); }}
+                              className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
+                              title="Убрать с этой даты"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          <div className="text-[10px] text-gray-500 dark:text-gray-400 flex items-center gap-1 font-bold uppercase">
+                            {t.calendar.spots}: <span className="text-electric-blue dark:text-emerald-400">{t.calendar.available}</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-center opacity-60">
+                    <div className="w-20 h-20 bg-gray-100/50 dark:bg-white/5 rounded-full flex items-center justify-center mb-4 backdrop-blur-sm border border-white/10">
+                      <CalendarIcon className="w-8 h-8 text-gray-400 dark:text-gray-500" />
+                    </div>
+                    <p className="text-gray-600 dark:text-gray-300 text-sm font-medium">{t.calendar.noTours}</p>
+                    <a href="https://t.me/Galagon_support_bot" target="_blank" rel="noopener noreferrer" className="mt-6 px-6 py-3 bg-white/20 dark:bg-white/10 hover:bg-white/40 dark:hover:bg-white/20 backdrop-blur-md rounded-xl text-electric-blue dark:text-emerald-400 text-xs font-bold uppercase tracking-wide flex items-center gap-2 transition-all border border-white/10">
+                      {t.calendar.orderIndiv} <ArrowRightIcon className="w-3 h-3" />
+                    </a>
                   </div>
-                </div>
-              ))
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full text-center opacity-60">
-                <div className="w-20 h-20 bg-gray-100/50 dark:bg-white/5 rounded-full flex items-center justify-center mb-4 backdrop-blur-sm border border-white/10">
-                  <CalendarIcon className="w-8 h-8 text-gray-400 dark:text-gray-500" />
-                </div>
-                <p className="text-gray-600 dark:text-gray-300 text-sm font-medium">{t.calendar.noTours}</p>
-                <a href="https://t.me/Galagon_support_bot" target="_blank" rel="noopener noreferrer" className="mt-6 px-6 py-3 bg-white/20 dark:bg-white/10 hover:bg-white/40 dark:hover:bg-white/20 backdrop-blur-md rounded-xl text-electric-blue dark:text-emerald-400 text-xs font-bold uppercase tracking-wide flex items-center gap-2 transition-all border border-white/10">
-                  {t.calendar.orderIndiv} <ArrowRightIcon className="w-3 h-3" />
-                </a>
+                )}
               </div>
-            )}
-          </div>
 
-          {/* Desktop Admin: Add tour to date */}
-          {isAdmin && (
-            <div className="shrink-0 pt-4 border-t border-white/10 dark:border-white/5">
-              {!showAddTour ? (
-                <button
-                  onClick={() => setShowAddTour(true)}
-                  className="w-full py-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm font-bold flex items-center justify-center gap-2 transition-all active:scale-95"
-                >
-                  <Plus className="w-4 h-4" /> Добавить маршрут
-                </button>
-              ) : (
-                <div className="bg-gray-800/60 backdrop-blur-sm rounded-xl p-4 border border-gray-700 space-y-3 animate-scale-in">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-gray-400 font-bold uppercase">Добавить на {selectedDate.toLocaleString('ru', { day: 'numeric', month: 'short' })}</p>
-                    <button onClick={() => setShowAddTour(false)} className="p-1 text-gray-500 hover:text-white rounded transition-colors">
-                      <X className="w-4 h-4" />
+              {/* Desktop Admin: Add tour to date */}
+              {isAdmin && (
+                <div className="shrink-0 pt-4 border-t border-white/10 dark:border-white/5">
+                  {!showAddTour ? (
+                    <button
+                      onClick={() => setShowAddTour(true)}
+                      className="w-full py-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm font-bold flex items-center justify-center gap-2 transition-all active:scale-95"
+                    >
+                      <Plus className="w-4 h-4" /> Добавить маршрут
                     </button>
-                  </div>
-                  <div className="flex gap-2">
-                    <input
-                      type="number"
-                      value={addSpots}
-                      onChange={e => setAddSpots(e.target.value)}
-                      className="w-20 px-2 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs"
-                      placeholder="Мест"
-                    />
-                    <span className="text-xs text-gray-500 self-center">мест</span>
-                  </div>
-                  <div className="max-h-40 overflow-y-auto space-y-1.5">
-                    {availableTours.map(tour => (
-                      <button
-                        key={tour.id}
-                        onClick={() => handleAddTourToDate(tour.id)}
-                        className="w-full text-left px-3 py-2 bg-gray-700/50 hover:bg-emerald-500/20 rounded-lg text-sm text-gray-200 hover:text-emerald-300 transition-colors flex items-center gap-2 group"
-                      >
-                        <Plus className="w-3 h-3 text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <span className="font-medium truncate">{tour.title}</span>
-                        <span className="ml-auto text-[10px] text-gray-500 whitespace-nowrap">{tour.duration}</span>
-                      </button>
-                    ))}
-                    {availableTours.length === 0 && (
-                      <p className="text-xs text-gray-500 italic py-2 text-center">Все маршруты уже назначены</p>
-                    )}
-                  </div>
+                  ) : (
+                    <div className="bg-gray-800/60 backdrop-blur-sm rounded-xl p-4 border border-gray-700 space-y-3 animate-scale-in">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-gray-400 font-bold uppercase">Добавить на {selectedDate.toLocaleString('ru', { day: 'numeric', month: 'short' })}</p>
+                        <button onClick={() => setShowAddTour(false)} className="p-1 text-gray-500 hover:text-white rounded transition-colors">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          value={addSpots}
+                          onChange={e => setAddSpots(e.target.value)}
+                          className="w-20 px-2 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs"
+                          placeholder="Мест"
+                        />
+                        <span className="text-xs text-gray-500 self-center">мест</span>
+                      </div>
+                      <div className="max-h-40 overflow-y-auto space-y-1.5">
+                        {availableTours.map(tour => (
+                          <button
+                            key={tour.id}
+                            onClick={() => handleAddTourToDate(tour.id)}
+                            className="w-full text-left px-3 py-2 bg-gray-700/50 hover:bg-emerald-500/20 rounded-lg text-sm text-gray-200 hover:text-emerald-300 transition-colors flex items-center gap-2 group"
+                          >
+                            <Plus className="w-3 h-3 text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <span className="font-medium truncate">{tour.title}</span>
+                            <span className="ml-auto text-[10px] text-gray-500 whitespace-nowrap">{tour.duration}</span>
+                          </button>
+                        ))}
+                        {availableTours.length === 0 && (
+                          <p className="text-xs text-gray-500 italic py-2 text-center">Все маршруты уже назначены</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
+            </>
+          ) : (
+            /* Routes tab - desktop */
+            <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin pb-4">
+              <AllRoutesList />
             </div>
           )}
         </div>

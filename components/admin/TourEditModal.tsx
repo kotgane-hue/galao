@@ -29,6 +29,9 @@ const TourEditModal: React.FC<TourEditModalProps> = ({ tour, onClose }) => {
     const [uploading, setUploading] = useState(false);
     const [dragOver, setDragOver] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [uploadingGallery, setUploadingGallery] = useState(false);
+    const [dragOverGallery, setDragOverGallery] = useState(false);
+    const galleryInputRef = useRef<HTMLInputElement>(null);
     const [form, setForm] = useState({
         id: tour?.id || '',
         title: tour?.title || '',
@@ -38,6 +41,7 @@ const TourEditModal: React.FC<TourEditModalProps> = ({ tour, onClose }) => {
         distance: tour?.distance || '10-20 km',
         location: tour?.location || 'Осетия',
         image: tour?.image || '/images/mainfoto/1.webp',
+        gallery: tour?.gallery || [] as string[],
         shortDesc: tour?.shortDesc || '',
         desc: tour?.desc || '',
         gear: tour?.gear || '',
@@ -114,6 +118,31 @@ const TourEditModal: React.FC<TourEditModalProps> = ({ tour, onClose }) => {
         if (file) handleImageUpload(file);
     };
 
+    const handleGalleryUpload = async (files: FileList | File[]) => {
+        setUploadingGallery(true);
+        try {
+            const urls = [];
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                if (file.type.startsWith('image/')) {
+                    const url = await uploadImage(file, 'tours');
+                    urls.push(url);
+                }
+            }
+            if (urls.length > 0) {
+                updateField('gallery', [...form.gallery, ...urls]);
+            }
+        } catch (err: any) {
+            console.error('Gallery upload failed:', err);
+        } finally {
+            setUploadingGallery(false);
+        }
+    };
+
+    const removeGalleryImage = (index: number) => {
+        updateField('gallery', form.gallery.filter((_: string, i: number) => i !== index));
+    };
+
     const handleSave = async () => {
         if (!form.title || !form.id) return;
         setSaving(true);
@@ -127,7 +156,7 @@ const TourEditModal: React.FC<TourEditModalProps> = ({ tour, onClose }) => {
             distance: form.distance,
             location: form.location,
             image: form.image,
-            gallery: tour?.gallery || [],
+            gallery: form.gallery,
             shortDesc: form.shortDesc,
             desc: form.desc,
             program: form.program,
@@ -286,6 +315,76 @@ const TourEditModal: React.FC<TourEditModalProps> = ({ tour, onClose }) => {
                                 ❌ {uploadError}
                             </p>
                         )}
+                    </div>
+
+                    {/* Gallery Upload */}
+                    <div>
+                        <label className={labelClass}>Галерея тура (дополнительные фото)</label>
+                        <div
+                            className={`relative border-2 border-dashed rounded-2xl p-4 transition-all cursor-pointer group ${dragOverGallery
+                                ? 'border-emerald-400 bg-emerald-500/10'
+                                : 'border-gray-600 hover:border-gray-500 bg-gray-800/50'
+                                }`}
+                            onClick={() => galleryInputRef.current?.click()}
+                            onDragOver={(e) => { e.preventDefault(); setDragOverGallery(true); }}
+                            onDragLeave={() => setDragOverGallery(false)}
+                            onDrop={(e) => {
+                                e.preventDefault();
+                                setDragOverGallery(false);
+                                if (e.dataTransfer.files) handleGalleryUpload(e.dataTransfer.files);
+                            }}
+                        >
+                            <input
+                                ref={galleryInputRef}
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                className="hidden"
+                                onChange={(e) => {
+                                    if (e.target.files) handleGalleryUpload(e.target.files);
+                                }}
+                            />
+
+                            <div className="flex flex-col items-center py-4">
+                                {uploadingGallery ? (
+                                    <Loader2 className="w-8 h-8 text-emerald-400 animate-spin mb-2" />
+                                ) : (
+                                    <ImagePlus className="w-8 h-8 text-gray-500 group-hover:text-emerald-400 transition-colors mb-2" />
+                                )}
+                                <p className="text-sm text-gray-400">Нажмите или перетащите фото для галереи</p>
+                            </div>
+                        </div>
+
+                        {/* Gallery Thumbnails */}
+                        {form.gallery.length > 0 && (
+                            <div className="flex gap-3 mt-3 overflow-x-auto pb-2 hide-scrollbar">
+                                {form.gallery.map((img: string, i: number) => (
+                                    <div key={i} className="relative w-20 h-20 shrink-0 group">
+                                        <img src={img} alt="" className="w-full h-full object-cover rounded-xl border border-gray-700" onError={(e) => { (e.target as HTMLImageElement).src = '/images/mainfoto/1.webp'; }} />
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); e.preventDefault(); removeGalleryImage(i); }}
+                                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <X className="w-3.5 h-3.5" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        <input
+                            onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    const val = (e.target as HTMLInputElement).value;
+                                    if (val) {
+                                        updateField('gallery', [...form.gallery, val]);
+                                        (e.target as HTMLInputElement).value = '';
+                                    }
+                                }
+                            }}
+                            className={`${inputClass} mt-2 text-xs`}
+                            placeholder="или вставьте URL картинки и нажмите Enter"
+                        />
                     </div>
 
                     {/* Descriptions */}
